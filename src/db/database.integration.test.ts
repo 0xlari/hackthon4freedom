@@ -55,7 +55,7 @@ describe("PostgreSQL financial constraints", () => {
       "select count(*)::int as count from drizzle.__drizzle_migrations",
     );
 
-    expect(result.rows[0]?.count).toBe(16);
+    expect(result.rows[0]?.count).toBe(18);
   });
 
   it("does not approve a receivable without explicit BTC acceptance", async () => {

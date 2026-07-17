@@ -84,8 +84,8 @@
 ## ADR-012 — Nostr sem chave privada
 
 - **Data:** 2026-07-14
-- **Status:** confirmada
-- **Decisão:** NIP-98 assinado por NIP-07 para login; NIP-46 atrás de adapter alternativo; atestados `kind 30078` mínimos, sem PII, contratos ou valores. NIP-85 foi descartado no MVP porque o draft atual não modela os fatos operacionais necessários.
+- **Status:** parcialmente substituída pela ADR-032
+- **Decisão:** NIP-98 assinado por NIP-07 para vínculo opcional de reputação; NIP-46 atrás de adapter alternativo; atestados `kind 30078` mínimos, sem PII, contratos ou valores. NIP-85 foi descartado no MVP porque o draft atual não modela os fatos operacionais necessários.
 - **Consequências:** assinatura não prova verdade; desafio é efêmero e de uso único; correção é append-only; relays não participam da autorização financeira.
 
 ## ADR-013 — recorte geográfico e cambial
@@ -221,3 +221,24 @@
 - **Status:** preparação técnica implementada; ativação operacional pendente
 - **Decisão:** uma invoice real da demo exige auditoria `GO`, sessão armada, aprovação humana vigente, operadora identificada por hash, flag mainnet, flag exclusiva da demo e credenciais no cofre. Só uma invoice mainnet pode ficar ativa. Saldo acima do teto, reembolsável, resultado desconhecido ou conciliação divergente abrem um circuit breaker append-only e abortam a sessão.
 - **Consequências:** configurar chaves não ativa dinheiro por si só. Testes usam apenas gateways falsos; o fallback `/demo` é local e declara que nenhum fundo foi movimentado. A Fase 9 só termina após invoice mínima real, evento único, ledger balanceado, restauração e conciliação acompanhados.
+
+## ADR-032 — Supabase Auth para acesso; Nostr somente na reputação
+
+- **Data:** 2026-07-15
+- **Status:** substituída pela ADR-033
+- **Decisão:** acesso e cadastro usam link mágico de e-mail do Supabase Auth. Nostr não autentica a conta e não autoriza ações financeiras; uma usuária já autenticada pode vincular opcionalmente uma pubkey por desafio NIP-98 assinado em signer NIP-07. A pubkey permanece um atributo de reputação portátil.
+- **Consequências:** o projeto não recebe `nsec`; ausência de signer ou relay não bloqueia cadastro, recebíveis, pools ou pagamentos. O backend valida o access token Supabase antes de vincular a pubkey, e o desafio efêmero fica associado à usuária interna para impedir troca de identidade.
+
+## ADR-033 — acesso por carteira com LNURL-auth e reputação pseudônima
+
+- **Data:** 2026-07-16
+- **Status:** confirmada pela fundadora e implementada
+- **Decisão:** cadastro e acesso usam exclusivamente LNURL-auth. A plataforma cria um desafio aleatório de 32 bytes, a carteira assina com uma chave secp256k1 derivada para o domínio e o backend cria uma sessão própria em cookie `HttpOnly`. A chave de vinculação é armazenada somente como hash e aponta para um `User` interno opaco com `reputation_id` aleatório. Endereço Lightning/BIP353 é destino privado de pagamento, não credencial. Nostr não participa do login: atestados positivos, mínimos e pseudônimos são assinados institucionalmente e publicados de forma assíncrona.
+- **Consequências:** `auth.agendacryptoo.com` é o host de produção recomendado e deve permanecer estável, pois carteiras derivam chaves diferentes por domínio. Localhost serve para testes internos; carteira em outro dispositivo exige callback HTTPS público. Desafios expiram em cinco minutos, são de uso único e possuem token de polling separado; sessões duram até 30 dias e podem ser revogadas. Uma nova carteira não vinculada cria outra conta; vínculo de carteira adicional e recuperação serão uma etapa própria. E-mail e Nostr signer pessoal deixam de ser requisitos de acesso. Falha de relay nunca bloqueia autenticação ou finanças.
+
+## ADR-034 — Fedi opcional como canal comunitário e carteira interoperável
+
+- **Data:** 2026-07-17
+- **Status:** aprovada como plano de execução; implementação não iniciada
+- **Decisão:** o Fedi será um canal opcional de comunidade, descoberta e distribuição de pools aprovadas, além de uma das carteiras Lightning capazes de pagar invoices oficiais. O Fedi não valida recebíveis, não autoriza ações financeiras, não mantém o ledger, não calcula participações e não se torna dependência para abertura, financiamento, liquidação ou consulta de pools. O backend do Elas Recebem Hoje permanece como única fonte de verdade.
+- **Consequências:** a Etapa 10 criará páginas públicas sanitizadas com IDs opacos, compartilhamento por Fedi e outros canais e aporte por invoice compatível com qualquer carteira Lightning. Mensagens comunitárias nunca movimentam fundos ou alteram estados; integrações futuras mais profundas usam adapter e feature flag. Escopo, ordem, riscos, requisitos e aceite estão em `docs/18-fedi-comunidade-e-compartilhamento-de-pools.md`. Esta decisão não habilita mainnet nem autoriza movimentação financeira.

@@ -12,6 +12,7 @@ Pirâmide com muitos testes de regras puras, integrações reais em ambientes is
 - Conversões fiat/sats/USDT.
 - Limite inicial, evidências, garantia e expiração.
 - Sanitização do payload Nostr.
+- Codificação LNURL, assinatura secp256k1 DER, domínio, expiração e replay.
 
 ## Propriedades e máquinas de estado
 
@@ -48,6 +49,7 @@ Pirâmide com muitos testes de regras puras, integrações reais em ambientes is
 - SSRF em URLs de redes sociais/documentos.
 - Vazamento em logs, erros, analytics e Nostr.
 - CSRF, XSS e sessão.
+- Sequestro do token de polling, troca de domínio LNURL-auth e reutilização de `k1`.
 - Escopo de macaroons e rotação.
 - Abuso de invoices, saques e webhook replay.
 

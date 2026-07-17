@@ -12,6 +12,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 import { assets } from "@/domain/money";
@@ -175,6 +176,8 @@ const updatedAt = timestamp("updated_at", {
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
+  supabaseAuthUserId: uuid("supabase_auth_user_id").unique(),
+  reputationId: uuid("reputation_id").unique(),
   countryCode: text("country_code").notNull(),
   status: userStatus("status").notNull().default("PENDING"),
   nostrPubkey: text("nostr_pubkey").unique(),
@@ -182,10 +185,68 @@ export const users = pgTable("users", {
   updatedAt,
 });
 
+export const walletAuthenticators = pgTable(
+  "wallet_authenticators",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+    domain: text("domain").notNull(),
+    linkingKeyHash: text("linking_key_hash").notNull(),
+    lastUsedAt: timestamp("last_used_at", { mode: "date", withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { mode: "date", withTimezone: true }),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex("wallet_authenticators_domain_key_unique").on(table.domain, table.linkingKeyHash),
+    index("wallet_authenticators_user_idx").on(table.userId),
+    check("wallet_authenticators_key_hash_shape", sql`${table.linkingKeyHash} ~ '^[a-f0-9]{64}$'`),
+  ],
+);
+
+export const lnurlAuthChallenges = pgTable(
+  "lnurl_auth_challenges",
+  {
+    id: text("id").primaryKey(),
+    k1Hash: text("k1_hash").notNull().unique(),
+    pollTokenHash: text("poll_token_hash").notNull().unique(),
+    callbackUrl: text("callback_url").notNull(),
+    callbackDomain: text("callback_domain").notNull(),
+    userId: text("user_id").references(() => users.id, { onDelete: "restrict" }),
+    linkingKeyHash: text("linking_key_hash"),
+    expiresAt: timestamp("expires_at", { mode: "date", withTimezone: true }).notNull(),
+    authenticatedAt: timestamp("authenticated_at", { mode: "date", withTimezone: true }),
+    completedAt: timestamp("completed_at", { mode: "date", withTimezone: true }),
+    createdAt,
+  },
+  (table) => [
+    index("lnurl_auth_challenges_expiry_idx").on(table.expiresAt),
+    check("lnurl_auth_challenges_k1_hash_shape", sql`${table.k1Hash} ~ '^[a-f0-9]{64}$'`),
+    check("lnurl_auth_challenges_poll_hash_shape", sql`${table.pollTokenHash} ~ '^[a-f0-9]{64}$'`),
+  ],
+);
+
+export const appSessions = pgTable(
+  "app_sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { mode: "date", withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { mode: "date", withTimezone: true }),
+    lastSeenAt: timestamp("last_seen_at", { mode: "date", withTimezone: true }).notNull(),
+    createdAt,
+  },
+  (table) => [
+    index("app_sessions_user_idx").on(table.userId),
+    check("app_sessions_token_hash_shape", sql`${table.tokenHash} ~ '^[a-f0-9]{64}$'`),
+  ],
+);
+
 export const nostrAuthChallenges = pgTable(
   "nostr_auth_challenges",
   {
     id: text("id").primaryKey(),
+    userId: text("user_id").references(() => users.id, { onDelete: "restrict" }),
     pubkey: text("pubkey").notNull(),
     nonceHash: text("nonce_hash").notNull().unique(),
     requestUrl: text("request_url").notNull(),
@@ -195,6 +256,7 @@ export const nostrAuthChallenges = pgTable(
   },
   (table) => [
     index("nostr_auth_challenges_pubkey_idx").on(table.pubkey),
+    index("nostr_auth_challenges_user_idx").on(table.userId),
     check("nostr_auth_challenges_pubkey_shape", sql`${table.pubkey} ~ '^[a-f0-9]{64}$'`),
     check("nostr_auth_challenges_nonce_shape", sql`${table.nonceHash} ~ '^[a-f0-9]{64}$'`),
   ],

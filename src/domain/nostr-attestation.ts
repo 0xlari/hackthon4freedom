@@ -38,7 +38,7 @@ export function opaqueOperationReference() {
 }
 
 export function buildAttestationTemplate(input: {
-  subjectPubkey: string;
+  subjectReputationId: string;
   assertion: PositiveAssertion;
   operationRef: string;
   evidenceHash: string;
@@ -47,7 +47,7 @@ export function buildAttestationTemplate(input: {
 }): EventTemplate {
   const content: AttestationContent = {
     schema: "erh.reputation.v1",
-    subject: input.subjectPubkey,
+    subject: input.subjectReputationId,
     assertion: input.assertion,
     operation_ref: input.operationRef,
     occurred_at: input.occurredAt.toISOString(),
@@ -57,14 +57,13 @@ export function buildAttestationTemplate(input: {
   };
   const serialized = JSON.stringify(content);
   if (forbidden.test(serialized)) throw new Error("ATTESTATION_CONTAINS_FORBIDDEN_FIELD");
-  if (!/^[a-f0-9]{64}$/.test(input.subjectPubkey) || !/^[a-f0-9]{64}$/.test(input.operationRef) || !/^[a-f0-9]{64}$/.test(input.evidenceHash)) throw new Error("INVALID_ATTESTATION_REFERENCE");
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(input.subjectReputationId) || !/^[a-f0-9]{64}$/.test(input.operationRef) || !/^[a-f0-9]{64}$/.test(input.evidenceHash)) throw new Error("INVALID_ATTESTATION_REFERENCE");
 
   return {
     kind: NOSTR_ATTESTATION_KIND,
     created_at: Math.floor(input.occurredAt.getTime() / 1000),
     tags: [
-      ["d", `${input.subjectPubkey}:${input.assertion}:${input.operationRef}`],
-      ["p", input.subjectPubkey],
+      ["d", `${input.subjectReputationId}:${input.assertion}:${input.operationRef}`],
       ["t", input.assertion],
       ...(input.correctionOf ? [["e", input.correctionOf, "", "correction"]] : []),
     ],

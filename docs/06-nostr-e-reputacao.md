@@ -6,10 +6,9 @@ Permitir que participantes carreguem evidências assinadas de histórico sem pub
 
 ## Identidade e assinatura
 
-- A conta pode vincular uma pubkey Nostr após desafio assinado.
-- Navegador: NIP-07.
-- Signer remoto: NIP-46.
-- Autorização HTTP: NIP-98, com desafio de uso único, domínio e método vinculados e janela de 60 segundos.
+- O acesso à plataforma usa LNURL-auth; Nostr não é login.
+- A plataforma associa a reputação a um `reputation_id` aleatório, separado da linking key LNURL-auth e do endereço Lightning.
+- Participantes não precisam fornecer pubkey, signer ou `nsec` Nostr.
 - Android poderá usar NIP-55 futuramente.
 - A plataforma nunca solicita, recebe, registra ou recupera `nsec`.
 - A identidade institucional da plataforma assina atestados emitidos por suas regras.
@@ -36,9 +35,9 @@ Cada fato registra emissor, relação com a operação, momento, fonte, validade
 | NIP | Uso | Decisão e limitações |
 |---|---|---|
 | NIP-01 | Evento, assinatura e referências | Obrigatória; não define semântica de reputação. |
-| NIP-07 | Signer de navegador | Escolhida; depende de extensão e disponibilidade. |
-| NIP-46 | Signer remoto | Escolhida como alternativa; depende de relay e sessão segura. |
-| NIP-98 | Autorização HTTP assinada | Escolhida para login; evento efêmero `kind 27235`, URL e método exatos e payload vinculado ao desafio. |
+| NIP-07 | Signer de navegador | Fora do acesso e do fluxo obrigatório da participante. |
+| NIP-46 | Signer remoto | Pode operar o signer institucional externo; nunca recebe `nsec` da participante. |
+| NIP-98 | Autorização HTTP assinada | Fora do login do MVP, substituído por LNURL-auth. |
 | NIP-32 | Labels | Avaliada; útil para rótulos, mas pode facilitar abuso e tem semântica insuficiente para crédito. Não será base única. |
 | NIP-58 | Badges | Escolhida apenas para conquistas positivas; badge não representa risco financeiro. |
 | NIP-85 | Trusted Assertions | Avaliada; o draft atual enumera métricas de terceiros e não define os fatos operacionais deste produto. Não será usado no MVP. |
@@ -47,7 +46,7 @@ Cada fato registra emissor, relação com a operação, momento, fonte, validade
 | NIP-42 | Autenticação em relay | Útil em relay controlado; não substitui autorização da aplicação. |
 | NIP-65 | Lista de relays | Útil para descoberta; requer fallback configurado. |
 
-Decisão do MVP: evento de aplicação addressable `kind 30078`, com schema versionado `erh.reputation.v1`. O `d` inclui pubkey, tipo de fato e referência opaca da operação, preservando correções append-only. Eventos desconhecidos podem ser ignorados por outros clientes; o espelho interno permanece a fonte para autorização e contestação.
+Decisão do MVP: evento de aplicação addressable `kind 30078`, com schema versionado `erh.reputation.v1`. O `d` inclui `reputation_id` pseudônimo, tipo de fato e referência opaca da operação, preservando correções append-only. Eventos desconhecidos podem ser ignorados por outros clientes; o espelho interno permanece a fonte para autorização e contestação.
 
 ## Tipos de atestado
 
@@ -60,7 +59,7 @@ No MVP público, priorizar eventos positivos e não sensíveis. A publicação d
 ```json
 {
   "schema": "erh.reputation.v1",
-  "subject": "<pubkey>",
+  "subject": "<reputation_id pseudônimo>",
   "assertion": "operation_completed",
   "operation_ref": "opaque-random-reference",
   "occurred_at": "2026-07-14T00:00:00Z",
@@ -86,7 +85,7 @@ Nostr é append-only na prática. Uma correção publica novo evento assinado re
 
 ## Portabilidade e Sybil
 
-Pubkey é portátil, mas criar pubkeys é barato. A plataforma não concede limite relevante apenas por possuir Nostr. Sinais ganham peso quando emitidos por fontes reconhecidas, ligados a operações reais e acumulados ao longo do tempo.
+O `reputation_id` pode ser compartilhado voluntariamente, mas não autentica a conta e não revela a linking key da carteira. Criar carteiras é barato, então a plataforma não concede limite relevante apenas por autenticar uma chave. Sinais ganham peso quando emitidos por fontes reconhecidas, ligados a operações reais e acumulados ao longo do tempo.
 
 ## Referência
 

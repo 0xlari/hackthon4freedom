@@ -10,15 +10,15 @@ import { publishToRelays, type NostrRelayGateway } from "@/integrations/nostr/re
 export async function createSignedAttestation<THKT extends PgQueryResultHKT>(db: PgDatabase<THKT, typeof schema>, signer: NostrEventSigner, input: { subjectUserId: string; semanticKey: string; assertion: PositiveAssertion; operationRef: string; evidenceHash: string; occurredAt: Date; correctionOfId?: string }) {
   const duplicate = await db.select().from(nostrAttestations).where(eq(nostrAttestations.semanticKey, input.semanticKey)).limit(1);
   if (duplicate[0]) return { attestationId: duplicate[0].id, eventId: duplicate[0].eventId, duplicate: true };
-  const [subject] = await db.select({ pubkey: users.nostrPubkey }).from(users).where(eq(users.id, input.subjectUserId)).limit(1);
-  if (!subject?.pubkey) throw new Error("NOSTR_SUBJECT_NOT_LINKED");
+  const [subject] = await db.select({ reputationId: users.reputationId }).from(users).where(eq(users.id, input.subjectUserId)).limit(1);
+  if (!subject?.reputationId) throw new Error("REPUTATION_SUBJECT_NOT_AVAILABLE");
   let correctionEventId: string | undefined;
   if (input.correctionOfId) {
     const [previous] = await db.select().from(nostrAttestations).where(eq(nostrAttestations.id, input.correctionOfId)).limit(1);
     if (!previous) throw new Error("NOSTR_CORRECTION_TARGET_NOT_FOUND");
     correctionEventId = previous.eventId;
   }
-  const event = await signer.signEvent(buildAttestationTemplate({ subjectPubkey: subject.pubkey, assertion: input.assertion, operationRef: input.operationRef, evidenceHash: input.evidenceHash, occurredAt: input.occurredAt, correctionOf: correctionEventId }));
+  const event = await signer.signEvent(buildAttestationTemplate({ subjectReputationId: subject.reputationId, assertion: input.assertion, operationRef: input.operationRef, evidenceHash: input.evidenceHash, occurredAt: input.occurredAt, correctionOf: correctionEventId }));
   validateSignedAttestation(event);
   const id = randomUUID();
   await db.transaction(async (tx) => {

@@ -12,7 +12,6 @@ import * as schema from "@/db/schema";
 
 let postgres: PGlite;
 let database: ReturnType<typeof drizzle<typeof schema>>;
-const subjectSecret = generateSecretKey();
 const platformSecret = generateSecretKey();
 const signer: NostrEventSigner = { method: "institutional", getPublicKey: async () => getPublicKey(platformSecret), signEvent: async (event: EventTemplate) => finalizeEvent(event, platformSecret) };
 
@@ -20,7 +19,7 @@ describe("Nostr attestation persistence", () => {
   beforeAll(async () => {
     postgres = new PGlite(); database = drizzle(postgres, { schema });
     await migrate(database, { migrationsFolder: "drizzle" });
-    await postgres.query("insert into users (id, country_code, nostr_pubkey) values ('subject', 'BR', $1)", [getPublicKey(subjectSecret)]);
+    await postgres.query("insert into users (id, country_code, reputation_id) values ('subject', 'BR', '019f605e-94c9-7140-8374-0d9f39119c4e')");
   }, 30_000);
   afterAll(async () => { await postgres.close(); });
 

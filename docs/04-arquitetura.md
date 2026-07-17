@@ -31,7 +31,7 @@ flowchart LR
 - **Jobs:** worker separado com fila persistente ou padrão transactional outbox.
 - **Documentos:** object storage compatível com S3, bucket privado e URLs temporárias.
 - **Bitcoin, Lightning e USDt:** Breez SDK Liquid atrás de um adaptador próprio; BTC entra e sai por Lightning, enquanto o hedge da pool pareada usa exclusivamente USDt na Liquid.
-- **Nostr:** biblioteca com suporte a NIP-01, NIP-07 e NIP-46; relays configuráveis.
+- **Nostr:** NIP-01 com signer institucional externo (NIP-46 é uma opção de transporte); relays configuráveis e nenhuma chave da participante.
 
 Um monólito modular é preferido no hackathon. Serviços financeiros externos são adaptadores, não microserviços internos prematuros.
 
@@ -58,7 +58,8 @@ Na pool pareada em dólar, o ledger separa a obrigação protegida em USDT da li
 
 ## Autenticação e autorização
 
-- Participantes: NIP-07 no navegador ou NIP-46 signer remoto; fallback de conta convencional é decisão posterior.
+- Participantes: LNURL-auth. A API gera `k1` aleatório e QR, a carteira assina com linking key específica de `auth.agendacryptoo.com`, o servidor verifica secp256k1 e emite sessão própria em cookie `HttpOnly`. O banco guarda apenas hashes de linking key, polling e sessão; endereço Lightning de recebimento é dado privado separado.
+- Reputação Nostr: não autentica e não requer signer da participante. Um signer institucional externo publica atestados positivos pseudônimos por outbox; PostgreSQL permanece a fonte de autorização e risco.
 - Cliente pagador: link tokenizado, hash armazenado, expiração, uso limitado e confirmação adicional para mudanças críticas.
 - Administração: identidade separada, MFA, sessão curta e trilha de auditoria.
 - Autorização no servidor por recurso e papel; esconder botão não constitui controle.
@@ -104,6 +105,7 @@ Logs estruturados sem PII, correlation ID por operação, métricas de invoices,
 
 - Local: regtest/simuladores e dados fictícios.
 - Preview: signet/testes, relays separados e nenhum segredo mainnet.
+- Auth local: localhost permite testes de API/navegador, mas uma carteira em outro dispositivo só retorna para callback HTTPS público. O host LNURL-auth de produção não deve ser trocado depois do lançamento.
 - Demo mainnet: feature flag, allowlist, limites mínimos e operação acompanhada.
 - Produção: não existe até revisão jurídica, segurança, backup e testes de recuperação.
 

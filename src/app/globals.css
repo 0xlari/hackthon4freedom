@@ -904,6 +904,20 @@ svg {
   color: var(--ink-soft);
 }
 
+.wallet-sign-in { display: grid; gap: 1rem; margin-top: 1.6rem; }
+.wallet-sign-in__button,
+.wallet-sign-in__open,
+.wallet-sign-in__secondary { display: inline-flex; align-items: center; justify-content: center; gap: 0.55rem; border: 0; border-radius: 999px; cursor: pointer; font: inherit; font-weight: 800; text-decoration: none; }
+.wallet-sign-in__button,
+.wallet-sign-in__open { background: var(--green); color: var(--white); padding: 0.95rem 1.25rem; }
+.wallet-sign-in__button:disabled { cursor: wait; opacity: 0.7; }
+.wallet-sign-in__challenge { display: grid; justify-items: center; gap: 0.85rem; }
+.wallet-sign-in__challenge img { width: min(100%, 320px); height: auto; border: 1px solid var(--line); border-radius: 1rem; }
+.wallet-sign-in__secondary { background: transparent; color: var(--green); padding: 0.55rem 0.8rem; }
+.wallet-sign-in__status { margin: 0; color: var(--ink-soft); font-size: 0.9rem; }
+.wallet-sign-in__status--success { color: var(--green); font-weight: 750; }
+.wallet-sign-in__status--error { color: var(--coral-dark); }
+
 .limit-section {
   padding-top: 4rem;
 }
@@ -1718,6 +1732,10 @@ svg {
 }
 
 .nostr-sign-in { display: grid; gap: .9rem; width: 100%; }
+.email-sign-in { display: grid; gap: .7rem; width: 100%; }
+.email-sign-in label { color: var(--ink); font-size: .9rem; font-weight: 750; }
+.email-sign-in input { background: white; border: 1px solid var(--line); border-radius: 1rem; color: var(--ink); font: inherit; min-height: 3.25rem; padding: .8rem 1rem; width: 100%; }
+.email-sign-in input:focus { border-color: var(--ink); outline: 3px solid color-mix(in srgb, var(--accent) 25%, transparent); }
 .nostr-sign-in__button { align-items: center; background: var(--ink); border: 0; border-radius: 999px; color: white; cursor: pointer; display: flex; font: inherit; font-weight: 750; gap: .65rem; justify-content: center; min-height: 3.25rem; padding: .8rem 1.2rem; }
 .nostr-sign-in__button:disabled { cursor: not-allowed; opacity: .72; }
 .nostr-sign-in__status { margin: 0; font-size: .92rem; }

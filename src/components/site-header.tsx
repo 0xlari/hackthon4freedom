@@ -6,6 +6,7 @@ const navigation = [
   { href: "/como-funciona", label: "Como funciona" },
   { href: "/pools", label: "Pools" },
   { href: "/limite", label: "Meu limite" },
+  { href: "/reputacao", label: "Reputação" },
   { href: "/recebivel", label: "Recebível" },
   { href: "/demo", label: "Demo" },
 ];

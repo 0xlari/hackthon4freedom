@@ -20,13 +20,15 @@ Demonstrar que um pagamento legítimo devido a uma pessoa no Brasil por um pagad
 - Como aportadora, quero comparar Full BTC e pareada em dólar antes de aportar.
 - Como aportadora, quero ver exatamente quem assume volatilidade, inadimplência e custos.
 - Como plataforma, quero impedir recebíveis duplicados e pagadores reincidentes.
-- Como participante, quero vincular uma pubkey e portar atestados não sensíveis.
+- Como participante, quero entrar assinando um desafio na carteira Lightning e consultar atestados não sensíveis sem publicar minha carteira.
 
 ## Requisitos funcionais
 
 ### Conta, identidade e limite
 
 - RF-01: criar conta sem exigir gênero.
+- RF-01A: criar e acessar a conta por LNURL-auth, sem exigir e-mail, telefone, endereço de pagamento, saldo ou frase-semente.
+- RF-01B: manter a reputação no ID interno opaco e permitir, em evolução posterior, mais de uma carteira autenticadora por conta sem multiplicar reputação.
 - RF-02: atribuir limite inicial equivalente a US$ 100.
 - RF-03: permitir conexão de identidade Nostr e redes sociais por consentimento.
 - RF-04: registrar evidências verificadas, fonte, data, expiração e impacto no limite.
@@ -65,7 +67,7 @@ Demonstrar que um pagamento legítimo devido a uma pessoa no Brasil por um pagad
 
 ### Nostr e auditoria
 
-- RF-23: conectar signer externo sem solicitar `nsec`.
+- RF-23: publicar atestados por signer institucional externo sem solicitar `nsec` da participante.
 - RF-24: publicar somente IDs opacos, hashes, tipos de atestado e status não sensíveis.
 - RF-25: manter trilha interna imutável de decisões, cotações e movimentos.
 
@@ -79,6 +81,7 @@ Demonstrar que um pagamento legítimo devido a uma pessoa no Brasil por um pagad
 - RNF-06: modo demonstração visualmente distinto do modo mainnet.
 - RNF-07: recuperação de falhas de webhook, relay, cotação e pagamento.
 - RNF-08: acessibilidade básica, português e arquitetura preparada para espanhol.
+- RNF-09: desafios LNURL-auth expiráveis, de uso único e vinculados a host HTTPS estável; sessões revogáveis em cookie `HttpOnly`.
 
 ## Regras financeiras
 

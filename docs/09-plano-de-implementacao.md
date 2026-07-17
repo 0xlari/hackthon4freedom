@@ -37,11 +37,11 @@ Nenhuma etapa está autorizada até a mensagem exata **APROVADO PARA IMPLEMENTAR
 
 ## Etapa 3 — identidade, limite e reputação interna
 
-- **Objetivo:** conta, US$ 100 base, evidências e cálculo explicável.
+- **Objetivo:** conta autenticada por LNURL-auth, US$ 100 base, evidências e cálculo explicável.
 - **Áreas:** auth, perfil, limites, consentimento.
 - **Dependências:** Etapa 2.
-- **Aceite:** cada alteração de limite tem regra, versão e justificativa.
-- **Testes:** expiração, revogação, concorrência e garantia.
+- **Aceite:** desafio e sessão não podem ser reutilizados; cada alteração de limite tem regra, versão e justificativa.
+- **Testes:** assinatura secp256k1, expiração, replay, revogação, concorrência e garantia.
 - **Risco:** sinais sociais discriminatórios/manipuláveis.
 - **Resultado:** painel “como aumentar meu limite”.
 - **Complexidade:** média; UI e regras podem avançar em paralelo.
@@ -81,7 +81,7 @@ Nenhuma etapa está autorizada até a mensagem exata **APROVADO PARA IMPLEMENTAR
 
 ## Etapa 7 — Nostr
 
-- **Objetivo:** login signer e atestados mínimos.
+- **Objetivo:** atestados institucionais mínimos, sem usar Nostr como login.
 - **Áreas:** identidade, publisher, relays.
 - **Dependências:** Etapas 3–5.
 - **Aceite:** nenhuma `nsec`; payload passa verificação de privacidade.

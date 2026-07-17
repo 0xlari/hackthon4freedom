@@ -4,7 +4,10 @@
 
 | Entidade | Atributos essenciais |
 |---|---|
-| User | id opaco, papéis, status, país, pubkey Nostr opcional |
+| User | id opaco, reputation_id aleatório, papéis, status, país |
+| WalletAuthenticator | usuário, domínio LNURL-auth, hash da linking key, uso, revogação |
+| AuthChallenge | hash de k1, hash do token de polling, domínio, expiração, consumo |
+| AppSession | usuário, hash do token, expiração, revogação |
 | IdentityEvidence | tipo, emissor, referência protegida, status, validade |
 | CreditLimit | limite total/usado/disponível, moeda, versão da regra, justificativas |
 | Collateral | ativo, valor, cotação, status, regra de liberação |
@@ -28,6 +31,7 @@
 ## Relacionamentos
 
 - User possui evidências, limite, garantias e fatos de reputação.
+- User possui uma ou mais carteiras autenticadoras; a reputação pertence ao User, nunca a um endereço de pagamento isolado.
 - Receivable pertence a uma solicitante e referencia um Client.
 - Receivable possui confirmações e validações versionadas.
 - Receivable aprovado origina no máximo uma Pool ativa.
@@ -37,7 +41,7 @@
 
 ## Identificadores e privacidade
 
-IDs públicos são aleatórios e não sequenciais. CPF, contatos, contratos, invoices completas e dados bancários ficam em armazenamento privado. Hash não torna dado de baixa entropia anônimo; hashes publicados usam identificador opaco e salt/estrutura que impeça comparação externa.
+IDs públicos são aleatórios e não sequenciais. CPF, contatos, contratos, invoices completas, destinos Lightning e dados bancários ficam em armazenamento privado. A linking key LNURL-auth é específica do domínio e armazenada como hash; não é publicada no Nostr. Hash não torna dado de baixa entropia anônimo; hashes publicados usam identificador opaco e salt/estrutura que impeça comparação externa.
 
 ## Máquinas de estado
 
