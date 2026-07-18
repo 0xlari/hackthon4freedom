@@ -23,7 +23,13 @@ export type NwcPaymentResult =
       feesPaidMsat: bigint;
     }>
   | Readonly<{
-      status: "FAILED" | "UNKNOWN";
+      status: "FAILED";
+      requestEventId?: string;
+      responseEventId?: string;
+      code: NwcFailureCode;
+    }>
+  | Readonly<{
+      status: "UNKNOWN";
       requestEventId?: string;
       responseEventId?: string;
       code: NwcFailureCode;
