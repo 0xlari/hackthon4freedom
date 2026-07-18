@@ -55,7 +55,35 @@ describe("PostgreSQL financial constraints", () => {
       "select count(*)::int as count from drizzle.__drizzle_migrations",
     );
 
-    expect(result.rows[0]?.count).toBe(18);
+    expect(result.rows[0]?.count).toBe(19);
+  });
+
+  it("enforces one single-use payer authorization per receivable", async () => {
+    await postgres.exec(`
+      insert into receivables
+        (id, requester_id, client_id, contract_asset, nominal_amount, due_at, status, client_accepted_btc)
+      values
+        ('receivable-nwc', 'user-demo', 'client-demo', 'USD_REFERENCE', 10000, now() + interval '10 days', 'UNDER_VALIDATION', true);
+      insert into receivable_versions
+        (id, receivable_id, version, service_description, payment_purpose, contract_asset, nominal_amount, due_at)
+      values
+        ('receivable-version-nwc', 'receivable-nwc', 1, 'Pagamento fictício', 'SERVICE', 'USD_REFERENCE', 10000, now() + interval '10 days');
+      insert into client_confirmations
+        (id, receivable_id, receivable_version, token_hash, status, expires_at, used_at, client_accepts_btc, confirms_description, confirmed_amount, confirmed_due_at, terms_version)
+      values
+        ('confirmation-nwc', 'receivable-nwc', 1, repeat('a', 64), 'ACCEPTED', now() + interval '10 days', now(), true, true, 10000, now() + interval '10 days', 'v1');
+      insert into payer_payment_authorizations
+        (id, public_id, receivable_id, payer_id, confirmation_id, management_token_hash, method, status, max_amount_msat, max_fee_msat, scheduled_for, expires_at)
+      values
+        ('authorization-nwc', '018f2f72-8468-7c4f-bab1-51ba445e68d1', 'receivable-nwc', 'client-demo', 'confirmation-nwc', repeat('b', 64), 'NWC_AUTOMATIC', 'PENDING_CONNECTION', 1000000, 10000, now() + interval '10 days', now() + interval '11 days');
+    `);
+
+    await expect(postgres.query(`
+      insert into payer_payment_authorizations
+        (id, public_id, receivable_id, payer_id, confirmation_id, management_token_hash, method, status, max_amount_msat, max_fee_msat, scheduled_for, expires_at)
+      values
+        ('authorization-duplicate', '018f2f72-8468-7c4f-bab1-51ba445e68d2', 'receivable-nwc', 'client-demo', 'confirmation-nwc', repeat('c', 64), 'MANUAL', 'MANUAL_PAYMENT_REQUIRED', 1000000, 10000, now() + interval '10 days', now() + interval '11 days')
+    `)).rejects.toThrow();
   });
 
   it("does not approve a receivable without explicit BTC acceptance", async () => {

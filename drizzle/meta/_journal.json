@@ -127,6 +127,13 @@
       "when": 1784248771838,
       "tag": "0017_friendly_wallop",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1784383200000,
+      "tag": "0018_nwc_payer_payments",
+      "breakpoints": true
     }
   ]
 }

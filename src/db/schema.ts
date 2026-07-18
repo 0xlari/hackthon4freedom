@@ -23,6 +23,12 @@ import {
   receivableStatuses,
   validationStatuses,
 } from "@/domain/state-machine";
+import {
+  nwcConnectionStatuses,
+  payerPaymentAuthorizationStatuses,
+  payerPaymentMethods,
+  scheduledPaymentAttemptStatuses,
+} from "@/domain/payer-payment";
 
 export const assetCode = pgEnum("asset_code", assets);
 export const receivableStatus = pgEnum(
@@ -159,6 +165,16 @@ export const nostrRelayStatus = pgEnum("nostr_relay_status", [
   "ACKNOWLEDGED",
   "FAILED",
 ]);
+export const payerPaymentMethod = pgEnum("payer_payment_method", payerPaymentMethods);
+export const payerPaymentAuthorizationStatus = pgEnum(
+  "payer_payment_authorization_status",
+  payerPaymentAuthorizationStatuses,
+);
+export const nwcConnectionStatus = pgEnum("nwc_connection_status", nwcConnectionStatuses);
+export const scheduledPaymentAttemptStatus = pgEnum(
+  "scheduled_payment_attempt_status",
+  scheduledPaymentAttemptStatuses,
+);
 
 const createdAt = timestamp("created_at", {
   mode: "date",
@@ -681,6 +697,101 @@ export const clientConfirmations = pgTable(
       "client_confirmations_accepted_matches_all_terms",
       sql`${table.status} <> 'ACCEPTED'::client_confirmation_status or (${table.clientAcceptsBtc} is true and ${table.confirmsDescription} is true and ${table.confirmedAmount} is not null and ${table.confirmedDueAt} is not null and ${table.termsVersion} is not null)`,
     ),
+  ],
+);
+
+export const payerPaymentAuthorizations = pgTable(
+  "payer_payment_authorizations",
+  {
+    id: text("id").primaryKey(),
+    publicId: uuid("public_id").notNull().unique(),
+    receivableId: text("receivable_id")
+      .notNull()
+      .references(() => receivables.id, { onDelete: "restrict" }),
+    payerId: text("payer_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "restrict" }),
+    confirmationId: text("confirmation_id")
+      .notNull()
+      .references(() => clientConfirmations.id, { onDelete: "restrict" }),
+    managementTokenHash: text("management_token_hash").notNull().unique(),
+    method: payerPaymentMethod("method").notNull(),
+    status: payerPaymentAuthorizationStatus("status").notNull(),
+    maxAmountMsat: bigint("max_amount_msat", { mode: "bigint" }).notNull(),
+    maxFeeMsat: bigint("max_fee_msat", { mode: "bigint" }).notNull(),
+    scheduledFor: timestamp("scheduled_for", { mode: "date", withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { mode: "date", withTimezone: true }).notNull(),
+    singleUse: boolean("single_use").notNull().default(true),
+    usedAt: timestamp("used_at", { mode: "date", withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { mode: "date", withTimezone: true }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("payer_payment_authorizations_one_per_receivable").on(table.receivableId),
+    index("payer_payment_authorizations_due_idx").on(table.status, table.scheduledFor),
+    check("payer_payment_authorizations_amount_positive", sql`${table.maxAmountMsat} > 0`),
+    check("payer_payment_authorizations_fee_non_negative", sql`${table.maxFeeMsat} >= 0`),
+    check("payer_payment_authorizations_expiry", sql`${table.expiresAt} > ${table.scheduledFor}`),
+    check("payer_payment_authorizations_single_use", sql`${table.singleUse} is true`),
+    check("payer_payment_authorizations_token_hash", sql`${table.managementTokenHash} ~ '^[a-f0-9]{64}$'`),
+    check("payer_payment_authorizations_manual_state", sql`${table.method} <> 'MANUAL'::payer_payment_method or ${table.status} = 'MANUAL_PAYMENT_REQUIRED'::payer_payment_authorization_status`),
+  ],
+);
+
+export const nwcConnections = pgTable(
+  "nwc_connections",
+  {
+    id: text("id").primaryKey(),
+    authorizationId: text("authorization_id")
+      .notNull()
+      .unique()
+      .references(() => payerPaymentAuthorizations.id, { onDelete: "restrict" }),
+    walletServicePubkey: text("wallet_service_pubkey").notNull(),
+    relayUrls: jsonb("relay_urls").notNull(),
+    encryptedConnectionSecret: text("encrypted_connection_secret").notNull(),
+    connectionFingerprint: text("connection_fingerprint").notNull().unique(),
+    supportedMethods: jsonb("supported_methods").notNull(),
+    lastCheckedAt: timestamp("last_checked_at", { mode: "date", withTimezone: true }).notNull(),
+    status: nwcConnectionStatus("connection_status").notNull().default("ACTIVE"),
+    revokedAt: timestamp("revoked_at", { mode: "date", withTimezone: true }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    check("nwc_connections_pubkey_shape", sql`${table.walletServicePubkey} ~ '^[a-f0-9]{64}$'`),
+    check("nwc_connections_fingerprint_shape", sql`${table.connectionFingerprint} ~ '^[a-f0-9]{64}$'`),
+  ],
+);
+
+export const scheduledPaymentAttempts = pgTable(
+  "scheduled_payment_attempts",
+  {
+    id: text("id").primaryKey(),
+    authorizationId: text("authorization_id")
+      .notNull()
+      .references(() => payerPaymentAuthorizations.id, { onDelete: "restrict" }),
+    invoiceId: text("invoice_id"),
+    invoiceReference: text("invoice_reference"),
+    invoicePaymentHash: text("invoice_payment_hash"),
+    idempotencyKey: text("idempotency_key").notNull().unique(),
+    scheduledFor: timestamp("scheduled_for", { mode: "date", withTimezone: true }).notNull(),
+    attemptedAt: timestamp("attempted_at", { mode: "date", withTimezone: true }),
+    status: scheduledPaymentAttemptStatus("status").notNull().default("SCHEDULED"),
+    nwcRequestEventId: text("nwc_request_event_id"),
+    nwcResponseEventId: text("nwc_response_event_id"),
+    failureCode: text("failure_code"),
+    failureReasonSafe: text("failure_reason_safe"),
+    feesPaidMsat: bigint("fees_paid_msat", { mode: "bigint" }),
+    preimageHash: text("preimage_hash"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("scheduled_payment_attempts_one_per_authorization").on(table.authorizationId),
+    index("scheduled_payment_attempts_due_idx").on(table.status, table.scheduledFor),
+    check("scheduled_payment_attempts_fees_non_negative", sql`${table.feesPaidMsat} is null or ${table.feesPaidMsat} >= 0`),
+    check("scheduled_payment_attempts_preimage_hash", sql`${table.preimageHash} is null or ${table.preimageHash} ~ '^[a-f0-9]{64}$'`),
   ],
 );
 
