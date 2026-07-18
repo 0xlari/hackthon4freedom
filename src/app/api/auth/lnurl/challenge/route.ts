@@ -10,6 +10,23 @@ export const dynamic = "force-dynamic";
 
 const privateHeaders = { "Cache-Control": "no-store, private", "Referrer-Policy": "no-referrer" };
 
+function safeErrorMetadata(error: unknown) {
+  if (!error || typeof error !== "object") return { name: "UnknownError", code: "UNKNOWN" };
+  const candidate = error as { name?: unknown; code?: unknown; cause?: unknown };
+  const cause = candidate.cause && typeof candidate.cause === "object"
+    ? candidate.cause as { code?: unknown }
+    : undefined;
+
+  return {
+    name: typeof candidate.name === "string" ? candidate.name : "Error",
+    code: typeof candidate.code === "string"
+      ? candidate.code
+      : typeof cause?.code === "string"
+        ? cause.code
+        : "UNKNOWN",
+  };
+}
+
 export async function POST(request: Request) {
   let bundle: ReturnType<typeof databaseFromEnvironment> | undefined;
   try {
@@ -25,7 +42,8 @@ export async function POST(request: Request) {
       expiresAt: challenge.expiresAt.toISOString(),
       publicHttps: new URL(callbackBaseUrl).protocol === "https:",
     }, { headers: privateHeaders });
-  } catch {
+  } catch (error) {
+    console.error("[lnurl-auth:challenge]", safeErrorMetadata(error));
     return NextResponse.json({ error: "Não foi possível preparar o acesso por carteira." }, { status: 503, headers: privateHeaders });
   } finally {
     await bundle?.close();
