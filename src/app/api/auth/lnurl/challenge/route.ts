@@ -27,6 +27,21 @@ function safeErrorMetadata(error: unknown) {
   };
 }
 
+function safeDatabaseTarget() {
+  try {
+    const url = new URL(process.env.DATABASE_URL ?? "");
+    const provider = url.hostname.endsWith(".pooler.supabase.com")
+      ? "supabase-pooler"
+      : url.hostname.endsWith(".supabase.co")
+        ? "supabase-direct"
+        : "other";
+
+    return { provider, port: url.port || "default" };
+  } catch {
+    return { provider: "invalid", port: "unknown" };
+  }
+}
+
 export async function POST(request: Request) {
   let bundle: ReturnType<typeof databaseFromEnvironment> | undefined;
   try {
@@ -43,7 +58,10 @@ export async function POST(request: Request) {
       publicHttps: new URL(callbackBaseUrl).protocol === "https:",
     }, { headers: privateHeaders });
   } catch (error) {
-    console.error("[lnurl-auth:challenge]", safeErrorMetadata(error));
+    console.error("[lnurl-auth:challenge]", {
+      ...safeErrorMetadata(error),
+      databaseTarget: safeDatabaseTarget(),
+    });
     return NextResponse.json({ error: "Não foi possível preparar o acesso por carteira." }, { status: 503, headers: privateHeaders });
   } finally {
     await bundle?.close();
