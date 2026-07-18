@@ -11,8 +11,8 @@ export function SiteFooter() {
         </div>
         <div className="site-footer__links" aria-label="Links do rodapé">
           <Link href="/como-funciona">Como funciona</Link>
-          <Link href="/pools">Pools demonstrativas</Link>
-          <span>Projeto em desenvolvimento</span>
+          <Link href="/pools">Pools BTC</Link>
+          <Link href="/recebivel">Criar recebível</Link>
         </div>
       </div>
     </footer>

@@ -4,7 +4,7 @@ import { ButtonLink } from "@/components/button-link";
 
 export const metadata: Metadata = {
   title: "Como funciona",
-  description: "Conheça o fluxo demonstrativo do recebível até a liquidação em Bitcoin.",
+  description: "Conheça o fluxo do recebível até a liquidação em Bitcoin.",
 };
 
 const stages = [
@@ -16,7 +16,7 @@ const stages = [
   {
     icon: CheckCircle2,
     title: "2. Peça a confirmação",
-    body: "O pagador confere origem, descrição, valor e data, e aceita pagar em BTC. Se recusar, o fluxo termina antes da pool.",
+    body: "O pagador confere os dados e assina com a carteira. A assinatura confirma o compromisso, mas não movimenta sats.",
   },
   {
     icon: ShieldCheck,
@@ -25,8 +25,18 @@ const stages = [
   },
   {
     icon: Bitcoin,
-    title: "4. Receba em Bitcoin",
-    body: "Depois que a pool fechar, a antecipação líquida segue por Lightning para a carteira da solicitante.",
+    title: "4. Abra a pool BTC",
+    body: "Aportadoras financiam contratos DLC. Os BTC ficam presos no contrato, nunca na carteira da plataforma.",
+  },
+  {
+    icon: Bitcoin,
+    title: "5. Receba em Bitcoin",
+    body: "Quando a pool fecha ou o parcial é aceito, o oráculo atesta o evento e os contratos liberam o BTC diretamente.",
+  },
+  {
+    icon: CircleDollarSign,
+    title: "6. Quite e distribua",
+    body: "No vencimento, o pagador paga uma invoice. A plataforma recebe apenas durante a redistribuição automática às aportadoras.",
   },
 ];
 
@@ -35,7 +45,7 @@ export default function HowItWorksPage() {
     <div className="inner-page">
       <section className="page-hero">
         <div className="shell page-hero__inner">
-          <span className="eyebrow">Fluxo demonstrativo</span>
+          <span className="eyebrow">Fluxo simples e verificável</span>
           <h1>Do trabalho entregue ao Bitcoin na carteira.</h1>
           <p>
             A plataforma não recebe dólares. O valor em USD registra o contrato; o
@@ -71,7 +81,7 @@ export default function HowItWorksPage() {
               pagamento.
             </p>
             <ButtonLink href="/pools" variant="secondary">
-              Conhecer as modalidades <ArrowRight aria-hidden="true" size={18} />
+              Ver pools BTC <ArrowRight aria-hidden="true" size={18} />
             </ButtonLink>
           </div>
         </div>

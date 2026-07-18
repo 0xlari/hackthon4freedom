@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, ExternalLink, LoaderCircle, RefreshCw, WalletCards } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ExternalLink, LoaderCircle, RefreshCw, WalletCards } from "lucide-react";
 import Image from "next/image";
 
 type Challenge = { challengeId: string; pollToken: string; lnurl: string; qrDataUrl: string; expiresAt: string; publicHttps: boolean };
 type State = "idle" | "working" | "waiting" | "success" | "error";
 
-export function LightningWalletSignIn() {
+type LightningWalletSignInProps = { redirectTo?: string };
+
+export function LightningWalletSignIn({ redirectTo = "/painel" }: LightningWalletSignInProps) {
+  const router = useRouter();
   const [state, setState] = useState<State>("idle");
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [message, setMessage] = useState("Nenhum e-mail, senha ou pagamento é necessário.");
@@ -46,6 +50,8 @@ export function LightningWalletSignIn() {
         window.clearInterval(timer);
         setState("success");
         setMessage("Carteira confirmada. Sua sessão privada foi criada.");
+        router.replace(redirectTo);
+        router.refresh();
       } catch (error) {
         if (stopped) return;
         stopped = true;
@@ -56,7 +62,7 @@ export function LightningWalletSignIn() {
       }
     }, 1_500);
     return () => { stopped = true; window.clearInterval(timer); };
-  }, [challenge, state]);
+  }, [challenge, redirectTo, router, state]);
 
   return (
     <div className="wallet-sign-in">
@@ -68,9 +74,7 @@ export function LightningWalletSignIn() {
           <button className="wallet-sign-in__secondary" type="button" onClick={createChallenge}><RefreshCw aria-hidden="true" size={17} /> Gerar outro QR</button>
           {!challenge.publicHttps && <small>Este QR usa localhost. Para confirmar pelo celular, publique o callback em HTTPS e configure LNURL_AUTH_BASE_URL.</small>}
         </div>
-      ) : state === "success" ? (
-        <a className="wallet-sign-in__button" href="/reputacao"><CheckCircle2 aria-hidden="true" size={20} /> Continuar para a plataforma</a>
-      ) : (
+      ) : state === "success" ? null : (
         <button className="wallet-sign-in__button" type="button" onClick={createChallenge} disabled={state === "working"}>
           {state === "working" ? <LoaderCircle className="spin" aria-hidden="true" size={20} /> : <WalletCards aria-hidden="true" size={20} />}
           {state === "working" ? "Preparando carteira…" : "Conectar carteira Lightning"}

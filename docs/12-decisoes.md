@@ -41,7 +41,7 @@
 ## ADR-006 — duas modalidades
 
 - **Data:** 2026-07-14
-- **Status:** confirmada
+- **Status:** substituída pela ADR-035
 - **Decisão:** Full BTC com risco cambial da aportadora; pool USD com conversão imediata a USDT.
 - **Consequências:** UI e ledger separam exposição; Full BTC não garante os mesmos sats.
 
@@ -182,7 +182,7 @@
 ## ADR-026 — USDt exclusivo na Liquid via Breez SDK
 
 - **Data:** 2026-07-14
-- **Status:** confirmada; implementação pendente nas Etapas 5, 6 e 8
+- **Status:** removida do produto atual pela ADR-035; preservada como pesquisa de roadmap
 - **Decisão:** a única stablecoin da pool pareada será o Tether USDt emitido na Liquid. A integração usará Breez SDK Liquid atrás de adapter próprio. Aportes e pagamentos continuam em BTC via Lightning; swaps explícitos convertem entre Lightning, L-BTC e USDt. USDC e USDT via Taproot Assets ficam fora do MVP.
 - **Consequências:** Liquid é uma sidechain da Bitcoin, não a blockchain principal. O asset ID precisa ser allowlisted por rede. Seed, signer, API key e estado persistente são segredos operacionais. Se a plataforma controlar a chave, a operação é tratada como custodial. Mainnet permanece deny-by-default, limitada por feature flag e somente pode ser habilitada após testnet, backup/restore, liquidez, slippage, conciliação, responsável humano e avaliação jurídica.
 
@@ -242,3 +242,17 @@
 - **Status:** aprovada como plano de execução; implementação não iniciada
 - **Decisão:** o Fedi será um canal opcional de comunidade, descoberta e distribuição de pools aprovadas, além de uma das carteiras Lightning capazes de pagar invoices oficiais. O Fedi não valida recebíveis, não autoriza ações financeiras, não mantém o ledger, não calcula participações e não se torna dependência para abertura, financiamento, liquidação ou consulta de pools. O backend do Elas Recebem Hoje permanece como única fonte de verdade.
 - **Consequências:** a Etapa 10 criará páginas públicas sanitizadas com IDs opacos, compartilhamento por Fedi e outros canais e aporte por invoice compatível com qualquer carteira Lightning. Mensagens comunitárias nunca movimentam fundos ou alteram estados; integrações futuras mais profundas usam adapter e feature flag. Escopo, ordem, riscos, requisitos e aceite estão em `docs/18-fedi-comunidade-e-compartilhamento-de-pools.md`. Esta decisão não habilita mainnet nem autoriza movimentação financeira.
+
+## ADR-035 — fluxo único, pools somente BTC e aportes não custodiais por DLC
+
+- **Data:** 2026-07-18
+- **Status:** confirmada pela fundadora; implementação incremental
+- **Decisão:** o produto atual terá somente pools Full BTC. USDt/Liquid deixa a interface e permanece apenas como pesquisa de roadmap. Cada aporte será financiado em um DLC bilateral entre aportadora e solicitante, com execução condicionada por atestação do oráculo da plataforma e transação de reembolso após timelock. Durante a abertura da pool, a plataforma não recebe nem controla os aportes. No vencimento, o pagamento do pagador pode passar por carteira transitória segregada somente durante a distribuição automática.
+- **Consequências:** o login LNURL-auth não assina DLC. A chave contratual precisa permanecer sob controle da aportadora, com backup e recuperação; a carteira externa apenas financia o endereço on-chain do contrato. DLC mainnet exige auditoria própria, custo mínimo economicamente viável, reembolso, indisponibilidade do oráculo e recuperação testados. O código USDt existente não é apagado silenciosamente, mas fica inacessível ao produto atual.
+
+## ADR-036 — painel único, recebível ativo único, cobertura do principal e compartilhamento público
+
+- **Data:** 2026-07-18
+- **Status:** confirmada pela fundadora; experiência inicial em implementação
+- **Decisão:** depois do login, a participante acessa um painel único com as ações criar recebível e ver pools, histórico de recebíveis e pools aportadas, limite, missões e reputação. Cada pessoa pode manter somente um recebível ativo por vez. Toda pool terá URL pública opaca e compartilhamento por WhatsApp; páginas públicas mostram condições financeiras e reputação resumida, nunca PII, documentos ou dados do pagador. Garantia em BTC e tesouraria reservada cobrem somente o principal aportado, com percentual e parcela descoberta visíveis; rendimentos nunca são cobertos.
+- **Consequências:** recebíveis concluídos, cancelados ou rejeitados não bloqueiam um novo cadastro. Reserva de tesouraria não pode ser contada simultaneamente em duas pools. A ordem de cobertura na inadimplência é pagamento parcial, garantia, tesouraria e perda proporcional remanescente. Páginas separadas de demo, limite e reputação saem da navegação e são consolidadas no painel.

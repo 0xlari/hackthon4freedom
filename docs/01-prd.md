@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Demonstrar que um pagamento legítimo devido a uma pessoa no Brasil por um pagador no exterior pode, depois de confirmado e validado, originar uma pool financiada por aportes Lightning, com duas formas de exposição cambial, reputação portátil e regras explícitas de distribuição.
+Demonstrar que um pagamento legítimo devido a uma pessoa no Brasil por um pagador no exterior pode, depois de confirmado e validado, originar uma pool BTC com aportes não custodiais, reputação portátil, cobertura explícita do principal e regras auditáveis de distribuição.
 
 ## Personas
 
@@ -17,7 +17,9 @@ Demonstrar que um pagamento legítimo devido a uma pessoa no Brasil por um pagad
 - Como solicitante, quero aumentar meu limite conectando evidências de identidade, presença digital, histórico e garantia.
 - Como solicitante, quero cadastrar e acompanhar um recebível sem expor documentos às aportadoras ou ao Nostr.
 - Como pagador, quero confirmar os dados sem criar conta completa.
-- Como aportadora, quero comparar Full BTC e pareada em dólar antes de aportar.
+- Como aportadora, quero comparar pools BTC por prazo, cobertura e risco antes de aportar.
+- Como participante, quero consultar no mesmo perfil meus recebíveis e as pools em que aportei.
+- Como solicitante, quero compartilhar a página sanitizada da minha pool pelo WhatsApp para ajudá-la a fechar.
 - Como aportadora, quero ver exatamente quem assume volatilidade, inadimplência e custos.
 - Como plataforma, quero impedir recebíveis duplicados e pagadores reincidentes.
 - Como participante, quero entrar assinando um desafio na carteira Lightning e consultar atestados não sensíveis sem publicar minha carteira.
@@ -32,27 +34,29 @@ Demonstrar que um pagamento legítimo devido a uma pessoa no Brasil por um pagad
 - RF-02: atribuir limite inicial equivalente a US$ 100.
 - RF-03: permitir conexão de identidade Nostr e redes sociais por consentimento.
 - RF-04: registrar evidências verificadas, fonte, data, expiração e impacto no limite.
-- RF-05: aceitar garantia e simular inicialmente a regra de US$ 500 liberando até US$ 1.000 de limite total.
-- RF-06: explicar cada aumento ou redução do limite.
+- RF-05: aceitar garantia em BTC pela regra não aditiva em que US$ 1 elegível sustenta até US$ 2 de limite total.
+- RF-06: explicar cada aumento ou redução do limite; missões consentidas elevam o componente sem garantia de US$ 100 até US$ 5.000 por recebível.
 
 ### Recebível e validação
 
 - RF-07: cadastrar país do pagador, moeda estrangeira de referência, valor nominal, vencimento e evidências.
-- RF-08: gerar link único, expirável e de uso controlado para confirmação e aceite de pagamento em BTC.
+- RF-08: gerar link único, expirável e de uso controlado para o pagador confirmar e assinar com a carteira o compromisso de pagamento em BTC, deixando claro que a assinatura não movimenta sats.
 - RF-09: comparar confirmação do pagador com a solicitação e registrar o aceite explícito da liquidação em BTC.
 - RF-09A: tornar o recebível inelegível se o pagador recusar pagamento em BTC; não criar pool.
 - RF-10: verificar identidade, integridade, duplicidade, histórico da solicitante e histórico de pagamento do pagador.
 - RF-10A: registrar a origem do pagamento como `SALARY`, `SALE`, `COMMISSION`, `SERVICE` ou `OTHER`, com descrição e evidência compatíveis.
 - RF-11: aprovar, recusar ou solicitar correções automaticamente; permitir revisão administrativa excepcional auditada.
+- RF-11A: permitir no máximo um recebível ativo por participante; estados concluído, cancelado e rejeitado liberam novo cadastro.
 
 ### Pool e aportes
 
 - RF-12: calcular meta da pool a partir do valor nominal e desconto de até 5%.
-- RF-13: criar uma pool Full BTC ou pareada em dólar, nunca ambas para o mesmo recebível ativo.
+- RF-13: criar exatamente uma pool Full BTC para cada recebível aprovado; USDt fica fora do produto atual.
 - RF-14: exibir modalidade, meta, prazo, progresso, custos, retorno estimado e riscos.
-- RF-15: criar invoice Lightning única por intenção de aporte e reconhecer liquidação idempotentemente.
+- RF-15: criar um contrato DLC bilateral por aporte, financiado sem transferir custódia à plataforma, com execução por atestação do oráculo e reembolso por timelock.
 - RF-16: aceitar múltiplos aportes até a meta, impedindo sobre-financiamento.
 - RF-17: se o prazo terminar parcialmente financiado, permitir à solicitante aceitar o parcial ou devolver todos os aportes.
+- RF-17A: fornecer URL pública opaca e botão de compartilhamento por WhatsApp sem PII, documentos ou dados reconstruíveis do pagador.
 
 ### Liquidação
 
@@ -64,6 +68,8 @@ Demonstrar que um pagamento legítimo devido a uma pessoa no Brasil por um pagad
 - RF-21: destinar 30% do resultado líquido à plataforma e 70% às aportadoras.
 - RF-22: acionar a cobertura limitada da plataforma na inadimplência e registrar recuperação.
 - RF-22A: apresentar separadamente valor contratual de referência, cotação, spread, tarifa Lightning, custo de swap e valor líquido; a plataforma recebe apenas BTC.
+- RF-22B: exibir por pool a garantia BTC, tesouraria exclusivamente reservada, percentual coberto do principal e risco não coberto; rendimentos nunca integram cobertura.
+- RF-22C: manter eventual saldo recebido do pagador segregado durante a distribuição, sem reutilização e com estado explícito para payout pendente.
 
 ### Nostr e auditoria
 
@@ -82,6 +88,7 @@ Demonstrar que um pagamento legítimo devido a uma pessoa no Brasil por um pagad
 - RNF-07: recuperação de falhas de webhook, relay, cotação e pagamento.
 - RNF-08: acessibilidade básica, português e arquitetura preparada para espanhol.
 - RNF-09: desafios LNURL-auth expiráveis, de uso único e vinculados a host HTTPS estável; sessões revogáveis em cookie `HttpOnly`.
+- RNF-10: a plataforma não armazena chaves de aportes DLC nem mantém o principal enquanto a pool está aberta.
 
 ## Regras financeiras
 
@@ -96,7 +103,7 @@ Demonstrar que um pagamento legítimo devido a uma pessoa no Brasil por um pagad
 
 - Fluxo narrável em 3–5 minutos.
 - Uma invoice Lightning mainnet de pequeno valor paga e conciliada.
-- Modalidades comparáveis com números compreensíveis.
+- Pools BTC comparáveis por prazo, cobertura e risco.
 - Limite inicial e aumento explicável.
 - Nenhum documento ou dado pessoal em Nostr.
 - Falha externa não impede a conclusão da demo em modo controlado.
@@ -126,4 +133,4 @@ Demonstrar que um pagamento legítimo devido a uma pessoa no Brasil por um pagad
 
 ## Limitações
 
-USDt na Liquid via Breez SDK Liquid é a única stablecoin do MVP. Liquidez de swaps, recuperação da carteira, taxas, limites e conciliação precisam ser comprovados antes da mainnet controlada. Custódia, crédito, garantia e intermediação financeira exigem avaliação jurídica e operacional antes de produção.
+USDt/Liquid permanece apenas como pesquisa de roadmap. DLC mainnet, carteira contratual autocustodial, recuperação, timelocks, taxas, oráculo, cobertura, custódia transitória e intermediação financeira exigem auditoria técnica, jurídica e operacional antes de produção.

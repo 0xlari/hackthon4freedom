@@ -1,49 +1,52 @@
 import { expect, test } from "@playwright/test";
 
-test("home exposes the product promise and navigation", async ({ page }) => {
+test("home presents the two primary product paths", async ({ page }) => {
   await page.goto("/");
-
-  await expect(
-    page.getByRole("heading", { name: /Seu pagamento já tem data/i }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Entenda como funciona", exact: true }),
-  ).toBeVisible();
+  const main = page.locator("main");
+  await expect(page.getByRole("heading", { name: /Seu pagamento já tem data/i })).toBeVisible();
+  await expect(main.getByRole("link", { name: "Criar recebível", exact: true })).toBeVisible();
+  await expect(main.getByRole("link", { name: "Ver pools abertas", exact: true })).toBeVisible();
   await expect(page.getByText("Pagamento em BTC aceito")).toBeVisible();
 });
 
-test("layout does not overflow the viewport", async ({ page }) => {
+test("public navigation contains no redundant product pages", async ({ page }, testInfo) => {
   await page.goto("/");
+  const header = page.getByRole("banner");
+  const navigation = testInfo.project.name === "mobile-chromium"
+    ? header.getByRole("navigation", { name: "Navegação móvel" })
+    : header.getByRole("navigation", { name: "Navegação principal" });
 
-  const hasHorizontalOverflow = await page.evaluate(
-    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
-  );
+  if (testInfo.project.name === "mobile-chromium") {
+    await header.getByLabel("Abrir menu").click();
+  }
 
-  expect(hasHorizontalOverflow).toBe(false);
+  await expect(navigation.getByRole("link", { name: "Pools", exact: true })).toBeVisible();
+  await expect(navigation.getByRole("link", { name: "Entrar", exact: true })).toBeVisible();
+  await expect(navigation.getByRole("link", { name: /demo|reputação|meu limite/i })).toHaveCount(0);
 });
 
-test("limit page explains the rule and simulation boundary", async ({ page }) => {
-  await page.goto("/limite");
-
-  await expect(
-    page.getByRole("heading", {
-      name: "Seu limite cresce com provas, não com popularidade.",
-    }),
-  ).toBeVisible();
-  await expect(page.getByText("Somente simulação")).toBeVisible();
-
-  const hasHorizontalOverflow = await page.evaluate(
-    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
-  );
-  expect(hasHorizontalOverflow).toBe(false);
+test("wallet access explains that authentication moves no sats", async ({ page }) => {
+  await page.goto("/entrar");
+  await expect(page.getByRole("heading", { name: /Entre com sua carteira/i })).toBeVisible();
+  await expect(page.getByText(/não movimenta sats/i)).toBeVisible();
 });
 
-test("receivable page assigns validation to the platform", async ({ page }) => {
+test("pools are BTC-only and shareable", async ({ page }) => {
+  await page.goto("/pools");
+  await expect(page.getByRole("heading", { name: /Escolha uma pool/i })).toBeVisible();
+  await expect(page.getByText("Pool BTC").first()).toBeVisible();
+  await expect(page.getByText(/USDT|pareada em dólar/i)).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /WhatsApp/i }).first()).toHaveAttribute("href", /wa\.me/);
+  await page.getByRole("link", { name: /Ver detalhes/i }).first().click();
+  await expect(page.getByRole("heading", { name: /Projeto criativo internacional/i })).toBeVisible();
+  await expect(page.getByText(/Dados pessoais, documentos e informações do pagador permanecem privados/i)).toBeVisible();
+});
+
+test("receivable page states the single-active rule", async ({ page }) => {
   await page.goto("/recebivel");
-  await expect(page.getByRole("heading", { name: /Você cadastra/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Cadastre o pagamento/i })).toBeVisible();
+  await expect(page.getByText(/somente um recebível ativo por vez/i)).toBeVisible();
   await expect(page.getByText("Avaliação da plataforma")).toBeVisible();
-  await expect(page.getByText(/Salário, venda, comissão, serviço ou outro/i)).toBeVisible();
-  await expect(page.getByText(/disponível após autenticação segura/i)).toBeVisible();
 });
 
 test("confirmation page rejects a missing one-time token", async ({ page }) => {
@@ -51,32 +54,9 @@ test("confirmation page rejects a missing one-time token", async ({ page }) => {
   await expect(page.getByText(/link é inválido, expirou ou já foi usado/i)).toBeVisible();
 });
 
-test("Nostr login explains signer safety and fails safely without NIP-07", async ({ page }) => {
-  await page.goto("/entrar");
-  await expect(page.getByRole("heading", { name: /Entre sem entregar sua chave privada/i })).toBeVisible();
-  await expect(page.getByText(/não autoriza pagamentos/i)).toBeVisible();
-  await page.getByRole("button", { name: /Entrar com signer Nostr/i }).click();
-  await expect(page.getByText(/Nenhum signer NIP-07 foi encontrado/i)).toBeVisible();
-  await expect(page.getByText(/Nunca cole ou envie sua chave privada nsec/i)).toBeVisible();
-});
-
-test("pool simulator compares Full BTC and USDt without enabling funds", async ({ page }) => {
-  await page.goto("/pools");
-  await expect(page.getByRole("heading", { name: /Veja cada centavo/i })).toBeVisible();
-  await page.getByRole("radio", { name: /Pareada em USDt/i }).check();
-  await expect(page.getByText(/principal é acompanhado em USDt Liquid/i)).toBeVisible();
-  await expect(page.getByText(/Gateway Breez mainnet integrado/i)).toBeVisible();
-  await expect(page.getByText(/não são descontados da pool nem do retorno/i)).toBeVisible();
-  const hasHorizontalOverflow = await page.evaluate(
-    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
-  );
-  expect(hasHorizontalOverflow).toBe(false);
-});
-
-test("controlled demo has a fundless offline fallback", async ({ page }) => {
-  await page.goto("/demo");
-  await expect(page.getByText("DEMONSTRAÇÃO — nenhum fundo movimentado")).toBeVisible();
-  await page.getByRole("button", { name: "Fallback offline" }).click();
-  await expect(page.getByText(/não cria invoice, não conecta ao Breez SDK/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /pagar|ativar mainnet/i })).toHaveCount(0);
+test("layout does not overflow the viewport", async ({ page }) => {
+  for (const path of ["/", "/pools", "/pools/p_7f3k9m", "/recebivel", "/entrar"]) {
+    await page.goto(path);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+  }
 });

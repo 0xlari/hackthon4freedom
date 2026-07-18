@@ -1,26 +1,19 @@
 import type { Metadata } from "next";
 import { BadgeCheck, FileCheck2, Link2, ShieldCheck } from "lucide-react";
+import { ReceivableAccessAction } from "@/components/receivable-access-action";
 
-export const metadata: Metadata = {
-  title: "Novo recebível",
-  description: "Entenda o cadastro e a validação de um recebível internacional.",
-};
+export const metadata: Metadata = { title: "Criar recebível", description: "Cadastre um pagamento internacional para avaliação da plataforma." };
 
 export default function ReceivablePage() {
-  return (
-    <div className="inner-page">
-      <section className="page-hero page-hero--compact"><div className="shell page-hero__inner"><span className="eyebrow">Recebível internacional</span><h1>Você cadastra. O pagador confirma. A plataforma avalia.</h1><p>No piloto, a solicitante está no Brasil e tem um pagamento legítimo a receber do exterior — salário, venda, comissão, serviço ou outra origem comprovável. A liquidação será somente em BTC.</p></div></section>
-      <section className="section"><div className="shell">
-        <div className="demo-banner" role="status"><ShieldCheck aria-hidden="true" /><span><strong>Fluxo seguro demonstrativo.</strong> O cadastro público permanece bloqueado até a autenticação da participante. Documentos reais não são recebidos nesta tela.</span></div>
-        <div className="receivable-preview">
-          <article><span className="eyebrow">Exemplo fictício</span><h2>Pagamento internacional confirmado</h2><dl><div><dt>Origem</dt><dd>Salário, venda, comissão, serviço ou outro</dd></div><div><dt>Valor nominal</dt><dd>US$ 2.000,00</dd></div><div><dt>Vencimento</dt><dd>30 dias</dd></div><div><dt>Liquidação</dt><dd>Somente BTC</dd></div></dl><div className="disabled-action">Cadastro disponível após autenticação segura</div></article>
-          <ol>
-            <li><FileCheck2 aria-hidden="true" /><span><strong>Documento privado</strong>Tipo real, tamanho, malware e duplicidade são verificados.</span></li>
-            <li><Link2 aria-hidden="true" /><span><strong>Link de uso único</strong>O pagador confirma origem, descrição, valor, data e aceite de BTC.</span></li>
-            <li><BadgeCheck aria-hidden="true" /><span><strong>Avaliação da plataforma</strong>Regras versionadas decidem; revisão humana é excepcional e auditada.</span></li>
-          </ol>
-        </div>
-      </div></section>
-    </div>
-  );
+  return <div className="inner-page">
+    <section className="page-hero page-hero--compact"><div className="shell page-hero__inner"><span className="eyebrow">Novo recebível</span><h1>Cadastre o pagamento que você tem a receber.</h1><p>Salário, venda, comissão, serviço ou outro pagamento legítimo do exterior. Você pode manter somente um recebível ativo por vez.</p></div></section>
+    <section className="section"><div className="shell receivable-flow">
+      <div className="receivable-requirements">
+        <article><FileCheck2 aria-hidden="true" /><div><h2>Dados e comprovantes</h2><p>Valor, moeda, vencimento, origem do pagamento e arquivos PDF, JPG ou PNG ficam privados.</p></div></article>
+        <article><Link2 aria-hidden="true" /><div><h2>Assinatura do pagador</h2><p>Você envia um link. O pagador confirma com a carteira; a assinatura não movimenta sats.</p></div></article>
+        <article><BadgeCheck aria-hidden="true" /><div><h2>Avaliação da plataforma</h2><p>Identidade, documento, duplicidade, limite e histórico são avaliados antes da pool BTC.</p></div></article>
+      </div>
+      <aside className="receivable-start"><ShieldCheck aria-hidden="true" /><span className="kicker">Critérios iniciais</span><h2>Prepare seu cadastro</h2><ul><li>Documento do recebível</li><li>Valor e data combinados</li><li>Contato do pagador</li><li>Confirmação de pagamento em BTC</li></ul><ReceivableAccessAction /></aside>
+    </div></section>
+  </div>;
 }

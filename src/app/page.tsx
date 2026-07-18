@@ -4,12 +4,12 @@ import {
   Bitcoin,
   FileCheck2,
   Globe2,
-  LockKeyhole,
   Radio,
   Sparkles,
 } from "lucide-react";
 import { ButtonLink } from "@/components/button-link";
 import { PoolCard } from "@/components/pool-card";
+import { publicPools } from "@/data/public-pools";
 
 const steps = [
   {
@@ -53,11 +53,11 @@ export default function Home() {
               no centro.
             </p>
             <div className="hero__actions">
-              <ButtonLink href="/como-funciona">
-                Entenda como funciona <ArrowRight aria-hidden="true" size={18} />
+              <ButtonLink href="/entrar?next=/painel">
+                Criar recebível <ArrowRight aria-hidden="true" size={18} />
               </ButtonLink>
               <ButtonLink href="/pools" variant="secondary">
-                Ver pools demonstrativas
+                Ver pools abertas
               </ButtonLink>
             </div>
             <ul className="trust-list" aria-label="Princípios da plataforma">
@@ -73,7 +73,7 @@ export default function Home() {
             </ul>
           </div>
 
-          <div className="hero-board" aria-label="Exemplo demonstrativo de recebível">
+          <div className="hero-board" aria-label="Exemplo de recebível">
             <div className="hero-board__halo" aria-hidden="true" />
             <div className="receipt-card">
               <div className="receipt-card__head">
@@ -149,40 +149,16 @@ export default function Home() {
       <section className="section section--pools">
         <div className="shell pools-layout">
           <div className="pools-copy">
-            <span className="kicker">Duas formas de participar</span>
-            <h2>Escolha como a variação do Bitcoin entra na história.</h2>
-            <p>
-              A Full BTC acompanha a variação em sats. A pareada em dólar protege a
-              obrigação da pool em USDT, mas a solicitante continua recebendo BTC.
-            </p>
-            <div className="notice">
-              <LockKeyhole aria-hidden="true" size={20} />
-              <span>
-                <strong>Dados fictícios.</strong> Estas pools existem para explicar o
-                produto; nenhuma está aberta para aporte nesta etapa.
-              </span>
-            </div>
+            <span className="kicker">Financiamento comunitário</span>
+            <h2>Uma pool BTC com risco e cobertura visíveis.</h2>
+            <p>Aportadoras podem financiar uma parte ou completar toda a pool. Garantia e tesouraria cobrem somente o principal, nunca rendimentos.</p>
             <ButtonLink href="/pools" variant="secondary">
-              Comparar modalidades
+              Ver todas as pools
             </ButtonLink>
           </div>
           <div className="pools-stack">
-            <PoolCard
-              label="Full BTC"
-              title="Identidade visual para estúdio"
-              amount="1.840.000 sats"
-              funded={72}
-              due="em 24 dias"
-              mode="btc"
-            />
-            <PoolCard
-              label="Pareada em dólar"
-              title="Pesquisa para pagador internacional"
-              amount="US$ 950 em referência"
-              funded={41}
-              due="em 18 dias"
-              mode="usd"
-            />
+            <PoolCard pool={publicPools[0]} />
+            <PoolCard pool={publicPools[1]} />
           </div>
         </div>
       </section>
@@ -216,11 +192,10 @@ export default function Home() {
           <span className="kicker">Elas recebem hoje</span>
           <h2>O futuro do trabalho já chegou. O pagamento também pode chegar.</h2>
           <p>
-            Conheça o fluxo antes do lançamento. Nenhuma operação financeira está
-            habilitada nesta versão.
+            Entre com sua carteira e escolha entre criar um recebível ou aportar em uma pool BTC.
           </p>
-          <ButtonLink href="/como-funciona">
-            Explorar o produto <ArrowRight aria-hidden="true" size={18} />
+          <ButtonLink href="/entrar?next=/painel">
+            Entrar na plataforma <ArrowRight aria-hidden="true" size={18} />
           </ButtonLink>
         </div>
       </section>

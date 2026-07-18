@@ -1,23 +1,22 @@
-import { ArrowUpRight, Bitcoin, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, Bitcoin, MessageCircle } from "lucide-react";
 
-type PoolCardProps = {
-  label: string;
-  title: string;
-  amount: string;
-  funded: number;
-  due: string;
-  mode: "btc" | "usd";
-};
+import type { PublicPool } from "@/data/public-pools";
 
-export function PoolCard({ label, title, amount, funded, due, mode }: PoolCardProps) {
-  const Icon = mode === "btc" ? Bitcoin : ShieldCheck;
+type PoolCardProps = { pool: PublicPool };
+
+export function PoolCard({ pool }: PoolCardProps) {
+  const { id, title, amount, funded, due, coverage } = pool;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const poolUrl = `${siteUrl}/pools/${id}`;
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`Ajude esta pool BTC a fechar. Veja prazo, riscos e cobertura: ${poolUrl}`)}`;
 
   return (
     <article className="pool-card">
       <div className="pool-card__topline">
         <span className="tag tag--soft">
-          <Icon aria-hidden="true" size={15} />
-          {label}
+          <Bitcoin aria-hidden="true" size={15} />
+          Pool BTC
         </span>
         <ArrowUpRight aria-hidden="true" size={20} />
       </div>
@@ -36,6 +35,11 @@ export function PoolCard({ label, title, amount, funded, due, mode }: PoolCardPr
       <div className="pool-card__meta">
         <span>{funded}% financiado</span>
         <span>Vence {due}</span>
+      </div>
+      <div className="pool-card__coverage"><span>Cobertura do principal</span><strong>{coverage}%</strong></div>
+      <div className="pool-card__actions">
+        <Link className="button button--secondary" href={`/pools/${id}`}>Ver detalhes <ArrowUpRight aria-hidden="true" size={17} /></Link>
+        <a className="share-link" href={whatsappUrl} target="_blank" rel="noreferrer"><MessageCircle aria-hidden="true" size={17} /> WhatsApp</a>
       </div>
     </article>
   );

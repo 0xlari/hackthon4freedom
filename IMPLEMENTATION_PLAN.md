@@ -11,7 +11,7 @@
 
 ## Objetivo
 
-Entregar um MVP demonstrável de antecipação de recebível, com validação da plataforma, duas modalidades de pool, um aporte Lightning real de baixo valor, ledger correto e reputação Nostr sem dados sensíveis.
+Entregar um MVP demonstrável de antecipação de recebível, com validação da plataforma, pools exclusivamente BTC, aporte não custodial por DLC, distribuição Lightning controlada, ledger correto e reputação Nostr sem dados sensíveis.
 
 ## Etapas
 
@@ -26,6 +26,8 @@ Entregar um MVP demonstrável de antecipação de recebível, com validação da
 - [x] 8. Auditar USDt Liquid e preparar mainnet controlada — resultado operacional `NO_GO`.
 - [ ] 9. Auditar, habilitar aporte mainnet mínimo e ensaiar demo.
 - [ ] 10. Implementar páginas públicas compartilháveis e distribuição comunitária opcional via Fedi.
+- [x] 11. Simplificar a experiência em painel único, remover páginas redundantes, adotar BTC-only e preparar compartilhamento por WhatsApp.
+- [ ] 12. Implementar carteira contratual autocustodial, DLC, oráculo e reembolso antes de qualquer aporte relevante.
 
 Detalhes e critérios estão em `docs/09-plano-de-implementacao.md`.
 O plano de execução específico da Etapa 10 está em `docs/18-fedi-comunidade-e-compartilhamento-de-pools.md`.
@@ -88,3 +90,5 @@ Correção de identidade aprovada em 2026-07-16 pela ADR-033: o link mágico foi
 Etapa 8 concluída como auditoria técnica reproduzível, com decisão operacional `NO_GO`. O asset ID e a precisão 8 do Tether USDt Liquid mainnet foram conferidos na documentação oficial; USDC permanece fora. O código ganhou avaliação `GO`/`NO_GO`, sondagem prepare-only protegida por flag separada, cotação de 60 segundos, teto de slippage de 1%, snapshots com hash para backup/restauração isolada, rescan, contagem de reembolsáveis/resultados desconhecidos e persistência idempotente. A migration 14 elevou o schema a 37 tabelas e impede `GO` incompatível com os guardrails. Foram validados allowlist, precisão e round-trip de unidades, quote expirada, slippage, ausência de execução, reembolsáveis, resultado desconhecido, restauração divergente, reconciliação, idempotência e constraints partindo de banco vazio; lint, tipos, regressões e build ficaram verdes. Sem responsável nomeado, segredos em cofre, diretórios persistentes, rota real, restauração real e conciliação, a decisão permanece `NO_GO`; nenhuma conexão financeira ou movimentação ocorreu.
 
 Etapa 9 preparada tecnicamente sem ativação financeira: as migrations 15–16 elevaram o schema a 40 tabelas e introduziram sessão vinculada à auditoria, aprovação humana expirável, tetos fixos, invoice mainnet ativa única e circuit breaker append-only. A criação de invoice agora exige auditoria `GO`, sessão ativa, aprovação vigente, duas flags e credenciais. O monitor aborta a sessão diante de saldo excessivo, reembolsável, resultado desconhecido ou conciliação divergente. A rota `/demo` ensaia o roteiro e o fallback inteiramente offline, sempre marcado como sem fundos. A etapa continua aberta até operadora, cofre, diretórios persistentes, restauração real e uma invoice mínima paga e reconciliada.
+
+Etapa 11 concluída em 2026-07-18 no escopo de experiência e arquitetura aprovada: o acesso LNURL-auth agora segue diretamente para `/painel`; o painel reúne criação de recebível, pools disponíveis, limite/missões, recebíveis originados e aportes realizados. Uma pessoa pode atuar nos dois papéis, mas somente um recebível ativo é permitido por vez. As rotas redundantes `/demo`, `/limite` e `/reputacao` e seus componentes foram removidos. As pools públicas ficaram exclusivamente BTC, com identificadores opacos, cobertura do principal, risco não coberto e compartilhamento por WhatsApp sem PII. USDt passou ao roadmap. O perfil ainda exibe estados vazios até a próxima etapa ligar os históricos ao PostgreSQL; cadastro completo, upload, confirmação funcional do pagador e aporte DLC não foram ativados. Validações executadas: lint, tipos, 108 testes unitários/de componentes, build de produção, inspeção visual desktop/celular e 14 testes E2E em Chromium desktop e Pixel 7. A Etapa 12 não foi iniciada.

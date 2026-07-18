@@ -6,12 +6,7 @@ describe("PoolCard", () => {
   it("exposes funding progress to assistive technology", () => {
     render(
       <PoolCard
-        label="Full BTC"
-        title="Projeto fictício"
-        amount="1.000 sats"
-        funded={72}
-        due="amanhã"
-        mode="btc"
+        pool={{ id: "p_test", title: "Projeto", amount: "1.000 sats", funded: 72, due: "amanhã", fundingDeadline: "hoje", discount: "3%", coverage: 40, reputation: "Verificada" }}
       />,
     );
 
@@ -19,5 +14,6 @@ describe("PoolCard", () => {
       "aria-valuenow",
       "72",
     );
+    expect(screen.getByRole("link", { name: /whatsapp/i })).toHaveAttribute("href", expect.stringContaining("wa.me"));
   });
 });
