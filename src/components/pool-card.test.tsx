@@ -6,7 +6,7 @@ describe("PoolCard", () => {
   it("exposes funding progress to assistive technology", () => {
     render(
       <PoolCard
-        pool={{ id: "p_test", title: "Projeto", amount: "1.000 sats", funded: 72, due: "amanhã", fundingDeadline: "hoje", discount: "3%", coverage: 40, reputation: "Verificada" }}
+        pool={{ id: "p_test", title: "Projeto", amount: "1.000 sats", targetSats: 1_000, fundedSats: 720, funded: 72, due: "amanhã", fundingDeadline: "hoje", discount: "3%", discountBps: 300, coverage: 40, reputation: "Verificada" }}
       />,
     );
 

@@ -46,7 +46,7 @@ test("receivable page states the single-active rule", async ({ page }) => {
   await page.goto("/recebivel");
   await expect(page.getByRole("heading", { name: /Cadastre o pagamento/i })).toBeVisible();
   await expect(page.getByText(/somente um recebível ativo por vez/i)).toBeVisible();
-  await expect(page.getByText("Avaliação da plataforma")).toBeVisible();
+  await expect(page.getByRole("link", { name: /Entrar com a carteira/i })).toBeVisible();
 });
 
 test("confirmation page rejects a missing one-time token", async ({ page }) => {
@@ -59,4 +59,37 @@ test("layout does not overflow the viewport", async ({ page }) => {
     await page.goto(path);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
   }
+});
+
+test("hackathon demo completes receivable approval and contribution", async ({ page }) => {
+  await page.route("**/api/auth/session", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ authenticated: true }) });
+  });
+
+  await page.goto("/recebivel");
+  const dueDate = new Date(Date.now() + 20 * 86_400_000).toISOString().slice(0, 10);
+  await page.getByLabel("Data combinada").fill(dueDate);
+  await page.getByRole("button", { name: "Cadastrar e gerar link" }).click();
+  await expect(page.getByRole("heading", { name: "Agora envie o link ao pagador." })).toBeVisible();
+  const confirmationUrl = await page.getByLabel("Link de confirmação").inputValue();
+
+  await page.goto(confirmationUrl);
+  await page.getByRole("button", { name: "Simular assinatura e confirmar" }).click();
+  await expect(page.getByText(/disponível para avaliação da plataforma/i)).toBeVisible();
+
+  await page.goto("/administracao");
+  await page.getByRole("button", { name: "Aprovar e criar pool" }).click();
+  await expect(page.getByText(/pool .* criada/i)).toBeVisible();
+
+  await page.goto("/pools");
+  const demoCard = page.getByRole("article").filter({ hasText: "Projeto internacional de design" });
+  await demoCard.getByRole("link", { name: /ver detalhes/i }).click();
+  await expect(page.getByRole("heading", { name: "Quanto você pode receber?" })).toBeVisible();
+  await expect(page.getByText("Estimativa central")).toBeVisible();
+  await page.getByRole("button", { name: "Simular aporte nesta pool" }).click();
+  await expect(page.getByText(/aporte demonstrativo de/i)).toBeVisible();
+
+  await page.goto("/painel");
+  await expect(page.getByText("Projeto internacional de design").first()).toBeVisible();
+  await expect(page.getByText(/sats aportados/i)).toBeVisible();
 });

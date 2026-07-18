@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { BadgeCheck, CircleAlert, LockKeyhole } from "lucide-react";
+import { confirmDemoReceivable, findDemoReceivableByToken } from "@/lib/demo-store";
 
 type Details = {
   paymentDescription: string;
@@ -32,10 +33,12 @@ export function ClientConfirmationForm() {
   const [confirmsDescription, setConfirmsDescription] = useState(true);
   const [status, setStatus] = useState<"loading" | "ready" | "sending" | "done" | "error">("loading");
   const [result, setResult] = useState("");
+  const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
-    const rawToken = window.location.hash.slice(1);
-    window.history.replaceState(null, "", window.location.pathname);
+    const demoToken = new URLSearchParams(window.location.search).get("demo") ?? "";
+    const rawToken = demoToken || window.location.hash.slice(1);
+    if (!demoToken) window.history.replaceState(null, "", window.location.pathname);
     void (async () => {
       await Promise.resolve();
       if (!rawToken) {
@@ -43,6 +46,19 @@ export function ClientConfirmationForm() {
         return;
       }
       setToken(rawToken);
+      if (demoToken) {
+        const receivable = findDemoReceivableByToken(demoToken);
+        if (!receivable || receivable.status !== "AWAITING_CLIENT") {
+          setStatus("error");
+          return;
+        }
+        setDemoMode(true);
+        setDetails({ paymentDescription: receivable.description, paymentPurpose: receivable.purpose, nominalUsdCents: String(Math.round(receivable.amountUsd * 100)), dueAt: `${receivable.dueDate}T12:00:00.000Z`, termsVersion: "hackathon-demo-v1" });
+        setAmount(receivable.amountUsd.toFixed(2));
+        setDueDate(receivable.dueDate);
+        setStatus("ready");
+        return;
+      }
       try {
         const response = await fetch("/api/client-confirmations", {
           method: "POST",
@@ -66,6 +82,17 @@ export function ClientConfirmationForm() {
     event.preventDefault();
     if (!details) return;
     setStatus("sending");
+    if (demoMode) {
+      try {
+        confirmDemoReceivable(token, acceptsBtc && confirmsDescription);
+        setResult(acceptsBtc && confirmsDescription ? "Confirmação demonstrativa registrada. O recebível já está disponível para avaliação da plataforma." : "Recusa registrada. Este recebível não poderá criar uma pool.");
+        setStatus("done");
+      } catch (cause) {
+        setResult(cause instanceof Error ? cause.message : "Não foi possível registrar a resposta.");
+        setStatus("error");
+      }
+      return;
+    }
     const response = await fetch("/api/client-confirmations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -97,7 +124,7 @@ export function ClientConfirmationForm() {
 
   return (
     <form className="confirmation-form" onSubmit={submit}>
-      <div className="confirmation-form__security"><LockKeyhole aria-hidden="true" /> Link de uso único. A aportadora não recebe nem valida estes dados.</div>
+      <div className="confirmation-form__security"><LockKeyhole aria-hidden="true" /> {demoMode ? "Confirmação demonstrativa: a assinatura da carteira é simulada e nenhum sat é movimentado." : "Link de uso único. A aportadora não recebe nem valida estes dados."}</div>
       <label>Origem do pagamento<input value={details ? purposeLabels[details.paymentPurpose] : ""} readOnly /></label>
       <label>Descrição do pagamento<input value={details?.paymentDescription ?? ""} readOnly /></label>
       <label><input type="checkbox" checked={confirmsDescription} onChange={(event) => setConfirmsDescription(event.target.checked)} /> Confirmo que reconheço a origem e a descrição deste pagamento.</label>
@@ -112,7 +139,7 @@ export function ClientConfirmationForm() {
       </fieldset>
       <p className="confirmation-form__note">Se aceitar, o link de pagamento Lightning será enviado somente próximo ao vencimento. Nenhum dólar entra na plataforma.</p>
       {status === "error" && result ? <p className="form-error" role="alert">{result}</p> : null}
-      <button className="button button--primary" disabled={status === "sending"} type="submit">{status === "sending" ? "Registrando…" : "Registrar minha resposta"}</button>
+      <button className="button button--primary" disabled={status === "sending"} type="submit">{status === "sending" ? "Registrando…" : demoMode ? "Simular assinatura e confirmar" : "Registrar minha resposta"}</button>
     </form>
   );
 }

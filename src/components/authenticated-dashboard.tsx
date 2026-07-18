@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BadgeCheck, Bitcoin, BriefcaseBusiness, FilePlus2, Fingerprint, Link2, Radio, ShieldCheck, Users } from "lucide-react";
+import { BadgeCheck, Bitcoin, BriefcaseBusiness, FilePlus2, Fingerprint, FlaskConical, Link2, Radio, ShieldCheck, Users } from "lucide-react";
 
 import { ButtonLink } from "@/components/button-link";
+import { DEMO_CHANGED_EVENT, getDemoState, type DemoContribution, type DemoReceivable } from "@/lib/demo-store";
 
 type AccessState = "checking" | "authenticated" | "anonymous";
 
@@ -18,6 +19,8 @@ const missions = [
 
 export function AuthenticatedDashboard() {
   const [access, setAccess] = useState<AccessState>("checking");
+  const [receivables, setReceivables] = useState<DemoReceivable[]>([]);
+  const [contributions, setContributions] = useState<DemoContribution[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -38,6 +41,17 @@ export function AuthenticatedDashboard() {
       });
     return () => { active = false; };
   }, [router]);
+
+  useEffect(() => {
+    const refresh = () => {
+      const state = getDemoState();
+      setReceivables(state.receivables);
+      setContributions(state.contributions);
+    };
+    queueMicrotask(refresh);
+    window.addEventListener(DEMO_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(DEMO_CHANGED_EVENT, refresh);
+  }, []);
 
   if (access !== "authenticated") {
     return <div className="dashboard-loading" role="status">{access === "checking" ? "Confirmando sua carteira…" : "Redirecionando para o acesso…"}</div>;
@@ -77,14 +91,16 @@ export function AuthenticatedDashboard() {
 
       <section className="profile-history" aria-label="Seu histórico na plataforma">
         <article>
-          <div><span className="kicker">Meus recebíveis</span><h2>Nenhum recebível ativo</h2><p>Você pode manter um recebível ativo por vez. Ao concluir, cancelar ou ter a solicitação rejeitada, poderá criar outro.</p></div>
-          <ButtonLink href="/recebivel" variant="secondary">Criar recebível</ButtonLink>
+          <div><span className="kicker">Meus recebíveis</span>{receivables.length ? <div className="profile-items">{receivables.map((item) => <div key={item.id}><strong>{item.description}</strong><span>US$ {item.amountUsd.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} · {item.status === "AWAITING_CLIENT" ? "aguardando pagador" : item.status === "UNDER_REVIEW" ? "em avaliação" : item.status === "POOLED" ? "pool criada" : item.status.toLowerCase()}</span></div>)}</div> : <><h2>Nenhum recebível ativo</h2><p>Você pode manter um recebível ativo por vez. Ao concluir, cancelar ou ter a solicitação rejeitada, poderá criar outro.</p></>}</div>
+          <ButtonLink href={receivables.some((item) => item.status === "UNDER_REVIEW") ? "/administracao" : "/recebivel"} variant="secondary">{receivables.some((item) => item.status === "UNDER_REVIEW") ? "Abrir avaliação" : "Criar recebível"}</ButtonLink>
         </article>
         <article>
-          <div><span className="kicker">Meus aportes</span><h2>Nenhuma participação ainda</h2><p>As pools financiadas por esta carteira aparecerão aqui com principal, cobertura, vencimento e distribuição.</p></div>
+          <div><span className="kicker">Meus aportes</span>{contributions.length ? <div className="profile-items">{contributions.map((item) => <div key={item.id}><strong>{item.poolTitle}</strong><span>{item.amountSats.toLocaleString("pt-BR")} sats aportados · retorno central ≈ {item.expectedSats.toLocaleString("pt-BR")} sats</span></div>)}</div> : <><h2>Nenhuma participação ainda</h2><p>As pools financiadas por esta carteira aparecerão aqui com principal, cobertura, vencimento e distribuição.</p></>}</div>
           <ButtonLink href="/pools" variant="secondary">Encontrar uma pool</ButtonLink>
         </article>
       </section>
+
+      <section className="dashboard-privacy dashboard-admin-demo"><FlaskConical aria-hidden="true" /><div><h2>Aprovação da plataforma no hackathon</h2><p>A área administrativa está aberta e sem senha somente para demonstrar a avaliação e a criação automática da pool.</p></div><ButtonLink href="/administracao" variant="secondary">Abrir administração</ButtonLink></section>
 
       <section className="dashboard-section" aria-labelledby="missions-title">
         <div className="dashboard-section__heading">

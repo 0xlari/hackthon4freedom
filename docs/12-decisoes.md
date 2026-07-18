@@ -256,3 +256,10 @@
 - **Status:** confirmada pela fundadora; experiência inicial em implementação
 - **Decisão:** depois do login, a participante acessa um painel único com as ações criar recebível e ver pools, histórico de recebíveis e pools aportadas, limite, missões e reputação. Cada pessoa pode manter somente um recebível ativo por vez. Toda pool terá URL pública opaca e compartilhamento por WhatsApp; páginas públicas mostram condições financeiras e reputação resumida, nunca PII, documentos ou dados do pagador. Garantia em BTC e tesouraria reservada cobrem somente o principal aportado, com percentual e parcela descoberta visíveis; rendimentos nunca são cobertos.
 - **Consequências:** recebíveis concluídos, cancelados ou rejeitados não bloqueiam um novo cadastro. Reserva de tesouraria não pode ser contada simultaneamente em duas pools. A ordem de cobertura na inadimplência é pagamento parcial, garantia, tesouraria e perda proporcional remanescente. Páginas separadas de demo, limite e reputação saem da navegação e são consolidadas no painel.
+
+## ADR-037 — fluxo completo do hackathon em modo demonstrativo explícito
+
+- **Data:** 2026-07-18
+- **Status:** implementada como complemento da Etapa 11
+- **Decisão:** o pitch pode percorrer cadastro do recebível, link do pagador, confirmação, avaliação administrativa sem senha, criação da pool, estimativa de retorno e aporte usando estado local do navegador. Toda tela afetada identifica o modo demonstração e declara que nenhum sat é movimentado. A área administrativa aberta é exclusiva do hackathon e possui comando para reiniciar o roteiro.
+- **Consequências:** o modo local não é fonte de verdade, não sincroniza entre dispositivos e não substitui PostgreSQL, object storage, autenticação administrativa, assinatura real do pagador, DLC ou pagamento Lightning. A estimativa da pool aplica os 70% das aportadoras sobre o resultado decorrente do desconto e mostra cenários de preço do BTC em ±10%; ela não é promessa de retorno. Produção continua exigindo administração com MFA, dados persistentes e integração financeira auditada.

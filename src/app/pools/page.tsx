@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Bitcoin } from "lucide-react";
 
-import { PoolCard } from "@/components/pool-card";
-import { publicPools } from "@/data/public-pools";
+import { PoolsExplorer } from "@/components/pools-explorer";
 
 export const metadata: Metadata = { title: "Pools BTC", description: "Pools BTC avaliadas pela plataforma, com prazo, cobertura e risco transparentes." };
 
@@ -16,7 +15,7 @@ export default function PoolsPage() {
       </div></section>
       <section className="section"><div className="shell">
         <div className="pool-list-intro"><div><span className="kicker">Full BTC</span><h2>Pools buscando financiamento</h2></div><p>O principal, a cobertura disponível e a parte não coberta aparecem antes do aporte. Rendimentos não são garantidos.</p></div>
-        <div className="pool-grid">{publicPools.map((pool) => <PoolCard key={pool.id} pool={pool} />)}</div>
+        <PoolsExplorer />
       </div></section>
     </div>
   );
