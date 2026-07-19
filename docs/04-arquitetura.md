@@ -117,3 +117,9 @@ Logs estruturados sem PII, correlation ID por operação, métricas de invoices,
 - Estratégia completa de escrow.
 - Originação por solicitantes fora do Brasil e payout fiat local.
 - Motor estatístico de risco.
+
+## Nostr Wallet Connect para o pagador
+
+NWC usa adapter separado de LNURL-auth e do publisher de reputação. A API recebe a URI apenas em escrita, valida protocolo, pubkey, até três relays públicos `wss://`, secret e tamanho, consulta o evento NIP-47 `info` (`13194`) e exige `pay_invoice`. O secret é cifrado em AES-256-GCM com `NWC_CONNECTION_ENCRYPTION_KEY`; PostgreSQL guarda fingerprint SHA-256 separado.
+
+O worker cria uma invoice idempotente por autorização e aplica data, valor máximo, tarifa, expiração, revogação e uso único antes de chamar `NwcGateway`. `SETTLED` publica exatamente um lançamento balanceado em BTC; falha definitiva mantém a invoice como fallback manual; `UNKNOWN` bloqueia retry. `RelayNwcGateway` existe atrás de `NWC_ENABLE_LIVE=true`; o fluxo financeiro e os testes atuais usam fake determinístico e não possuem scheduler real.

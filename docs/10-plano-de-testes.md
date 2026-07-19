@@ -78,3 +78,10 @@ Solicitante: Ana Lima (nome fictício), residente no Brasil, limite US$ 2.500 ap
 ## Critério de saída
 
 Zero falhas críticas; invariantes e E2E principal verdes; reconciliação sem divergência; revisão manual de payload Nostr; tabletop de incidente concluído.
+
+## Cobertura NWC do pagador
+
+- Unitários: URI/relay malicioso, criptografia autenticada, sanitização, estados, limites, expiração, revogação e mensagens seguras.
+- Banco/API: autorização manual e NWC, acesso horizontal, CSRF, secret ausente nas respostas, unicidade e migrations partindo de banco vazio.
+- Worker: sucesso único com ledger balanceado, falhas, fallback manual, invoice única e resultado desconhecido sem retry.
+- E2E desktop/mobile: confirmação independente de NWC, escolha manual, conexão NWC simulada, acompanhamento e revogação.

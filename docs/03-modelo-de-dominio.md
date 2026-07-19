@@ -100,3 +100,13 @@ Regras: somente `APPROVED` cria pool; duplicidade confirmada leva a `REJECTED`; 
 - Distribuição total = fundos disponíveis menos custos registrados.
 - Nenhum estado financeiro retrocede sem evento compensatório.
 - Publicação Nostr não contém referência capaz de revelar o recebível real.
+
+## Autorização de pagamento do pagador
+
+- `PayerPaymentAuthorization`: pagador, recebível, método NWC/manual, limites em msat, vencimento, validade, uso único e revogação.
+- `NwcConnection`: autorização, pubkey do serviço, relays, secret cifrado, fingerprint, métodos e última validação.
+- `ScheduledPaymentAttempt`: autorização, invoice, idempotência, eventos NWC, falha segura, tarifas e hash de preimage.
+
+Autorização: `PENDING_CONNECTION -> ACTIVE | INVALID | REVOKED | EXPIRED | MANUAL_PAYMENT_REQUIRED`; `ACTIVE -> PAYMENT_PENDING | INVALID | REVOKED | EXPIRED | MANUAL_PAYMENT_REQUIRED`; `PAYMENT_PENDING -> PAID | FAILED | MANUAL_PAYMENT_REQUIRED`. `PAID` e `REVOKED` são terminais.
+
+Tentativa: `SCHEDULED -> INVOICE_CREATED -> REQUEST_SENT -> PENDING -> SETTLED | FAILED | UNKNOWN | CANCELLED`. Cada recebível possui no máximo uma autorização e uma tentativa; `UNKNOWN` não é reenviado sem conciliação. Secret NWC nunca integra respostas, logs, auditoria, Nostr ou frontend.

@@ -134,3 +134,9 @@ Demonstrar que um pagamento legítimo devido a uma pessoa no Brasil por um pagad
 ## Limitações
 
 USDt/Liquid permanece apenas como pesquisa de roadmap. DLC mainnet, carteira contratual autocustodial, recuperação, timelocks, taxas, oráculo, cobertura, custódia transitória e intermediação financeira exigem auditoria técnica, jurídica e operacional antes de produção.
+
+## Pagamento do pagador no vencimento
+
+Depois de confirmar o recebível e aceitar BTC, o pagador escolhe independentemente entre NWC automático opcional ou Lightning manual com qualquer carteira. NWC não é login, não exige conta Nostr e não substitui LNURL-auth.
+
+A plataforma valida `pay_invoice`, protege o secret e aplica vencimento, valor, tarifa, expiração, revogação e uso único. A conexão não garante saldo, rota, disponibilidade ou pagamento futuro. Falha definitiva apresenta a mesma invoice para pagamento manual; resultado desconhecido aguarda conciliação e nunca dispara retry automático. O modo atual executa o worker somente com gateways simulados.

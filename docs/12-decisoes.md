@@ -263,3 +263,10 @@
 - **Status:** implementada como complemento da Etapa 11
 - **Decisão:** o pitch pode percorrer cadastro do recebível, link do pagador, confirmação, avaliação administrativa sem senha, criação da pool, estimativa de retorno e aporte usando estado local do navegador. Toda tela afetada identifica o modo demonstração e declara que nenhum sat é movimentado. A área administrativa aberta é exclusiva do hackathon e possui comando para reiniciar o roteiro.
 - **Consequências:** o modo local não é fonte de verdade, não sincroniza entre dispositivos e não substitui PostgreSQL, object storage, autenticação administrativa, assinatura real do pagador, DLC ou pagamento Lightning. A estimativa da pool aplica os 70% das aportadoras sobre o resultado decorrente do desconto e mostra cenários de preço do BTC em ±10%; ela não é promessa de retorno. Produção continua exigindo administração com MFA, dados persistentes e integração financeira auditada.
+
+## ADR-038 — NWC opcional para pagamento único do pagador
+
+- **Data:** 2026-07-18
+- **Status:** implementação simulada concluída; ativação financeira não autorizada
+- **Decisão:** após confirmar o recebível, o pagador pode conectar Nostr Wallet Connect para uma solicitação automática única no vencimento ou escolher pagamento manual com qualquer carteira Lightning. NWC é autorização de pagamento, não login, conta Nostr ou assinatura LNURL-auth. O secret é cifrado no servidor e nunca retorna ao frontend; a plataforma aplica vencimento, valor máximo, tarifa, expiração, revogação e bloqueio após sucesso.
+- **Consequências:** `info` e `pay_invoice` seguem NIP-47 atrás de adapter. Saldo e pagamento futuro não são garantidos. Falha definitiva expõe a invoice manual sem nova cobrança; resultado desconhecido exige conciliação. `NWC_ENABLE_LIVE` fica desligado; testes e demo usam fakes sem fundos. A referência de sats antes da cotação final não é preço garantido.

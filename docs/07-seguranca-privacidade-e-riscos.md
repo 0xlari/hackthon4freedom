@@ -78,3 +78,12 @@ Congelar novas invoices/saídas, preservar evidências, conciliar nó e ledger, 
 - Breez SDK Liquid e infraestrutura de swaps USDt com liquidez comprovada.
 - Recuperação de carteira, signer, estado persistente e banco sob desastre real.
 - Política contratual de garantia, inadimplência e disputa.
+
+## Controles e riscos NWC
+
+- URI NWC é credencial: AES-256-GCM no servidor, chave dedicada, fingerprint separado, leitura sem secret e acesso restrito ao worker.
+- APIs exigem token por recurso, mesma origem, limite de payload, rate limit, expiração, revogação e auditoria sem credenciais.
+- Relays aceitos usam apenas `wss://` público, com quantidade, tamanho e timeout limitados.
+- Resultado desconhecido bloqueia retry; falha definitiva preserva uma única invoice para fallback manual.
+
+Vazamento ou abuso de conexão NWC tem impacto crítico; mitigação atual combina cifragem, ausência em logs/Nostr, uso único, limites internos e revogação. Indisponibilidade ou malícia do relay não bloqueia pagamento manual. Produção ainda exige KMS/cofre, rotação, reconciliação externa, alertas e auditoria independente.

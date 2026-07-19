@@ -113,3 +113,11 @@ Nenhuma etapa está autorizada até a mensagem exata **APROVADO PARA IMPLEMENTAR
 - **Resultado:** pitch de 3–5 minutos.
 - **Complexidade:** média técnica, alto risco operacional; não delegar sem responsável.
 - **Resultado técnico em 2026-07-14:** sessão/aprovação, flag exclusiva, tetos, invoice única, circuit breaker append-only, monitor e fallback offline foram implementados e testados sem credenciais ou fundos. A etapa permanece operacionalmente aberta até uma nova auditoria `GO`, operadora nomeada, credenciais no cofre, restauração real e uma invoice mínima paga e reconciliada.
+
+## Etapa 13 — autorização NWC opcional do pagador
+
+- **Objetivo:** pagamento automático único sem tornar NWC requisito para confirmar o recebível.
+- **Áreas:** domínio, migration, criptografia, NIP-47, APIs por recurso, worker, ledger, UI e fallback manual.
+- **Aceite:** `pay_invoice`; secret nunca retorna; revogação/expiração/limites impedem uso; liquidação idempotente; falha cria fallback; `UNKNOWN` não repete.
+- **Testes:** URI/relay malicioso, criptografia, CSRF, acesso horizontal, estados, PostgreSQL vazio, desktop e mobile.
+- **Resultado em 2026-07-18:** modo demonstrativo concluído com gateway fake. Adapter de relay permanece bloqueado por flag e nenhuma cobrança real foi habilitada.
