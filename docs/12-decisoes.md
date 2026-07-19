@@ -280,3 +280,10 @@
 - **Status:** implementação simulada concluída; ativação financeira não autorizada
 - **Decisão:** após confirmar o recebível, o pagador pode conectar Nostr Wallet Connect para uma solicitação automática única no vencimento ou escolher pagamento manual com qualquer carteira Lightning. NWC é autorização de pagamento, não login, conta Nostr ou assinatura LNURL-auth. O secret é cifrado no servidor e nunca retorna ao frontend; a plataforma aplica vencimento, valor máximo, tarifa, expiração, revogação e bloqueio após sucesso.
 - **Consequências:** `info` e `pay_invoice` seguem NIP-47 atrás de adapter. Saldo e pagamento futuro não são garantidos. Falha definitiva expõe a invoice manual sem nova cobrança; resultado desconhecido exige conciliação. `NWC_ENABLE_LIVE` fica desligado; testes e demo usam fakes sem fundos. A referência de sats antes da cotação final não é preço garantido.
+
+## ADR-039 — conexão NWC de um clique como experiência principal
+
+- **Data:** 2026-07-19
+- **Status:** experiência implementada; ativação financeira permanece não autorizada
+- **Decisão:** a conexão do pagador usa Bitcoin Connect filtrado para NWC, solicita somente `pay_invoice`, não consulta saldo e não persiste a conexão no navegador. No celular, a biblioteca pode abrir uma carteira compatível; entre computador e celular, apresenta o pareamento para leitura pela própria carteira. A conexão devolvida é enviada à API existente para validação e armazenamento cifrado. URI manual deixa a experiência principal e permanece somente em “Opções avançadas”, em campo do tipo senha. Pagamento manual continua disponível.
+- **Consequências:** a plataforma não promete automação para carteiras sem NWC ou que não devolvam uma credencial utilizável pelo executor agendado. A compatibilidade deve ser verificada por carteira e versão. O botão simplifica o pareamento, mas não remove limites, revogação, idempotência, fallback manual ou a necessidade de autorização operacional para mainnet. O desenho completo está em `docs/19-pagamento-automatico-nwc-um-clique.md`.
