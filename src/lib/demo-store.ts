@@ -20,6 +20,9 @@ export type DemoReceivable = {
   status: DemoReceivableStatus;
   createdAt: string;
   payerAcceptedBtc?: boolean;
+  payerPaymentMethod?: "NWC_AUTOMATIC" | "MANUAL";
+  payerPaymentStatus?: string;
+  nwcWalletLabel?: string;
 };
 
 export type DemoContribution = {
@@ -90,6 +93,17 @@ export function confirmDemoReceivable(token: string, acceptsBtc: boolean) {
   if (!receivable || receivable.status !== "AWAITING_CLIENT") throw new Error("Link inválido ou já utilizado.");
   receivable.payerAcceptedBtc = acceptsBtc;
   receivable.status = acceptsBtc ? "UNDER_REVIEW" : "REJECTED";
+  writeState(state);
+  return receivable;
+}
+
+export function setDemoPayerPayment(receivableId: string, method: "NWC_AUTOMATIC" | "MANUAL", status: string, walletLabel?: string) {
+  const state = readState();
+  const receivable = state.receivables.find((item) => item.id === receivableId);
+  if (!receivable) throw new Error("Recebível demonstrativo não encontrado.");
+  receivable.payerPaymentMethod = method;
+  receivable.payerPaymentStatus = status;
+  receivable.nwcWalletLabel = walletLabel;
   writeState(state);
   return receivable;
 }

@@ -10,6 +10,7 @@ import {
   nwcConnections,
   payerPaymentAuthorizations,
   receivables,
+  scheduledPaymentAttempts,
 } from "@/db/schema";
 import { DomainError } from "@/domain/errors";
 import { hashConfirmationToken } from "@/domain/confirmation-token";
@@ -168,6 +169,11 @@ export async function readPayerPaymentAuthorization<THKT extends PgQueryResultHK
     status: nwcConnections.status,
     lastCheckedAt: nwcConnections.lastCheckedAt,
   }).from(nwcConnections).where(eq(nwcConnections.authorizationId, authorization.id)).limit(1);
+  const [attempt] = await db.select({
+    status: scheduledPaymentAttempts.status,
+    invoice: scheduledPaymentAttempts.invoiceReference,
+    failureReason: scheduledPaymentAttempts.failureReasonSafe,
+  }).from(scheduledPaymentAttempts).where(eq(scheduledPaymentAttempts.authorizationId, authorization.id)).limit(1);
   return {
     publicId: authorization.publicId,
     method: authorization.method,
@@ -184,6 +190,12 @@ export async function readPayerPaymentAuthorization<THKT extends PgQueryResultHK
       supportedMethods: connection.supportedMethods,
       status: connection.status,
       lastCheckedAt: connection.lastCheckedAt,
+    } : null,
+    manualPayment: attempt ? {
+      status: attempt.status,
+      invoice: attempt.invoice,
+      lightningUri: attempt.invoice ? `lightning:${attempt.invoice}` : null,
+      failureReason: attempt.failureReason,
     } : null,
     environment: "SIMULATION" as const,
   };
@@ -224,4 +236,19 @@ export async function revokePayerPaymentAuthorization<THKT extends PgQueryResult
     await tx.insert(auditEvents).values({ id: randomUUID(), action: "PAYER_PAYMENT_AUTHORIZATION_REVOKED", targetType: "PAYER_PAYMENT_AUTHORIZATION", targetId: authorization.id, correlationId: randomUUID() });
   });
   return { status: "REVOKED" as const };
+}
+
+export async function switchPayerPaymentToManual<THKT extends PgQueryResultHKT>(
+  db: Database<THKT>, input: { publicId: string; managementToken: string; now: Date },
+) {
+  const authorization = await authorizationForManagement(db, input.publicId, input.managementToken);
+  if (["PAYMENT_PENDING", "PAID", "REVOKED", "EXPIRED"].includes(authorization.status)) {
+    throw new DomainError("A forma de pagamento não pode mais ser alterada.", "INVALID_PAYMENT_AUTHORIZATION_STATE");
+  }
+  await db.transaction(async (tx) => {
+    await tx.update(payerPaymentAuthorizations).set({ method: "MANUAL", status: "MANUAL_PAYMENT_REQUIRED", updatedAt: input.now }).where(eq(payerPaymentAuthorizations.id, authorization.id));
+    await tx.update(nwcConnections).set({ status: "REVOKED", revokedAt: input.now, updatedAt: input.now }).where(eq(nwcConnections.authorizationId, authorization.id));
+    await tx.insert(auditEvents).values({ id: randomUUID(), action: "PAYER_PAYMENT_SWITCHED_TO_MANUAL", targetType: "PAYER_PAYMENT_AUTHORIZATION", targetId: authorization.id, correlationId: randomUUID() });
+  });
+  return { method: "MANUAL" as const, status: "MANUAL_PAYMENT_REQUIRED" as const };
 }

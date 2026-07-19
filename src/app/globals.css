@@ -1366,6 +1366,23 @@ svg {
   color: var(--green);
 }
 
+.payment-choice, .payment-summary { display: grid; gap: 1.25rem; }
+.payment-choice__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.payment-choice__grid article { display: flex; flex-direction: column; align-items: flex-start; gap: .75rem; padding: 1.3rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--white); }
+.payment-choice__grid article .button { margin-top: auto; }
+.nwc-connect select, .nwc-connect textarea { width: 100%; border: 1px solid var(--line); border-radius: .75rem; padding: .8rem; color: inherit; background: var(--white); }
+.authorization-review, .payment-summary > dl { padding: 1rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--paper-deep); }
+.authorization-review dl, .payment-summary > dl { display: grid; gap: .7rem; }
+.authorization-review dl div, .payment-summary > dl div { display: flex; justify-content: space-between; gap: 1rem; }
+.authorization-review dt, .payment-summary dt { color: var(--ink-soft); }
+.authorization-review dd, .payment-summary dd { margin: 0; text-align: right; font-weight: 700; }
+
+@media (max-width: 720px) {
+  .payment-choice__grid { grid-template-columns: 1fr; }
+  .authorization-review dl div, .payment-summary > dl div { display: grid; gap: .15rem; }
+  .authorization-review dd, .payment-summary dd { text-align: left; }
+}
+
 .receivable-preview {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
