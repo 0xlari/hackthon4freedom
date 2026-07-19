@@ -42,6 +42,10 @@ export async function runDuePayerPayment<THKT extends PgQueryResultHKT>(
     .where(eq(payerPaymentAuthorizations.id, input.authorizationId))
     .limit(1);
   if (!row) throw new Error("PAYMENT_AUTHORIZATION_NOT_FOUND");
+  const idempotencyKey = `payer-payment:${row.authorization.id}`;
+  const [existing] = await db.select().from(scheduledPaymentAttempts)
+    .where(eq(scheduledPaymentAttempts.idempotencyKey, idempotencyKey)).limit(1);
+  if (existing) return { status: existing.status, duplicate: true, invoice: existing.invoiceReference };
   if (row.receivable.status !== "DUE") throw new Error("RECEIVABLE_NOT_DUE");
   assertPaymentAttemptAllowed({
     amountMsat: row.authorization.maxAmountMsat,
@@ -53,11 +57,6 @@ export async function runDuePayerPayment<THKT extends PgQueryResultHKT>(
     usedAt: row.authorization.usedAt,
     revokedAt: row.authorization.revokedAt,
   });
-  const idempotencyKey = `payer-payment:${row.authorization.id}`;
-  const [existing] = await db.select().from(scheduledPaymentAttempts)
-    .where(eq(scheduledPaymentAttempts.idempotencyKey, idempotencyKey)).limit(1);
-  if (existing) return { status: existing.status, duplicate: true, invoice: existing.invoiceReference };
-
   const invoice = await dependencies.invoices.createInvoice({
     idempotencyKey,
     amountMsat: row.authorization.maxAmountMsat,

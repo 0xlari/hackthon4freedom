@@ -1,6 +1,6 @@
 import type { NwcFailureCode } from "@/domain/payer-payment";
 
-import type { NwcGateway, NwcPaymentResult, NwcWalletInfo, ParsedNwcConnection } from "./types";
+import type { NwcGateway, NwcPaymentResult, NwcWalletInfo } from "./types";
 
 export class FakeNwcGateway implements NwcGateway {
   readonly calls: string[] = [];
@@ -11,7 +11,7 @@ export class FakeNwcGateway implements NwcGateway {
     feesPaidMsat?: bigint;
   } = {}) {}
 
-  async getInfo(_connection: ParsedNwcConnection): Promise<NwcWalletInfo> {
+  async getInfo(): Promise<NwcWalletInfo> {
     this.calls.push("getInfo");
     return {
       methods: this.scenario.methods ?? ["pay_invoice", "get_info"],

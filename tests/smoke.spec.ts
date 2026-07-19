@@ -75,7 +75,9 @@ test("hackathon demo completes receivable approval and contribution", async ({ p
 
   await page.goto(confirmationUrl);
   await page.getByRole("button", { name: "Simular assinatura e confirmar" }).click();
-  await expect(page.getByText(/disponível para avaliação da plataforma/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Como você deseja realizar o pagamento/i })).toBeVisible();
+  await page.getByRole("button", { name: "Pagar manualmente no vencimento" }).click();
+  await expect(page.getByText(/Pagamento manual escolhido/i)).toBeVisible();
 
   await page.goto("/administracao");
   await page.getByRole("button", { name: "Aprovar e criar pool" }).click();
