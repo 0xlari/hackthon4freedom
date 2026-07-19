@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 
 import { PoolCard } from "@/components/pool-card";
 import { publicPools, type PublicPool } from "@/data/public-pools";
-import { DEMO_CHANGED_EVENT, getDemoState } from "@/lib/demo-store";
+import { DEMO_CHANGED_EVENT, getDemoPlatformState } from "@/lib/demo-store";
 
 export function PoolsExplorer() {
   const [pools, setPools] = useState<PublicPool[]>(publicPools);
   useEffect(() => {
-    const refresh = () => setPools([...getDemoState().pools, ...publicPools]);
+    const refresh = () => setPools([...getDemoPlatformState().pools, ...publicPools]);
     queueMicrotask(refresh);
     window.addEventListener(DEMO_CHANGED_EVENT, refresh);
     return () => window.removeEventListener(DEMO_CHANGED_EVENT, refresh);

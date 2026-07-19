@@ -6,19 +6,25 @@ import { BadgeCheck, Bitcoin, Clock3, FlaskConical, MessageCircle, ShieldCheck, 
 
 import { findPublicPool, type PublicPool } from "@/data/public-pools";
 import { estimatePoolReturnSats } from "@/domain/pool-return-estimate";
-import { getDemoState, recordDemoContribution } from "@/lib/demo-store";
+import { findDemoPoolById, recordDemoContribution } from "@/lib/demo-store";
 
 const sats = (value: number) => `${Math.max(0, Math.round(value)).toLocaleString("pt-BR")} sats`;
 
 export function PoolDetailsClient({ poolId }: { poolId: string }) {
   const [pool, setPool] = useState<PublicPool | undefined>(() => findPublicPool(poolId));
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [profileId, setProfileId] = useState("");
   const [amount, setAmount] = useState(100_000);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    queueMicrotask(() => setPool(findPublicPool(poolId) ?? getDemoState().pools.find((item) => item.id === poolId)));
-    fetch("/api/auth/session", { cache: "no-store" }).then((response) => setAuthenticated(response.ok)).catch(() => setAuthenticated(false));
+    queueMicrotask(() => setPool(findPublicPool(poolId) ?? findDemoPoolById(poolId)));
+    fetch("/api/auth/session", { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) return setAuthenticated(false);
+      const body = await response.json() as { profile?: { id: string } };
+      if (!body.profile?.id) return setAuthenticated(false);
+      setProfileId(body.profile.id); setAuthenticated(true);
+    }).catch(() => setAuthenticated(false));
   }, [poolId]);
 
   const remaining = pool ? Math.max(0, pool.targetSats - pool.fundedSats) : 0;
@@ -31,8 +37,8 @@ export function PoolDetailsClient({ poolId }: { poolId: string }) {
 
   function contribute() {
     if (!estimate) return;
-    recordDemoContribution(pool!, safeAmount, estimate.centralSats);
-    const stored = getDemoState().pools.find((item) => item.id === pool!.id);
+    recordDemoContribution(profileId, pool!, safeAmount, estimate.centralSats);
+    const stored = findDemoPoolById(pool!.id);
     if (stored) setPool({ ...stored });
     setMessage(`Aporte demonstrativo de ${sats(safeAmount)} registrado. Nenhum sat foi movimentado.`);
   }

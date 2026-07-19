@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { BadgeCheck, CircleX, FlaskConical, RefreshCw } from "lucide-react";
 
-import { DEMO_CHANGED_EVENT, getDemoState, resetDemoState, reviewDemoReceivable, type DemoReceivable } from "@/lib/demo-store";
+import { DEMO_CHANGED_EVENT, getDemoPlatformState, resetDemoState, reviewDemoReceivable, type DemoReceivable } from "@/lib/demo-store";
 
 const statusLabels: Record<DemoReceivable["status"], string> = {
   AWAITING_CLIENT: "Aguardando pagador",
@@ -16,7 +16,7 @@ const statusLabels: Record<DemoReceivable["status"], string> = {
 export function DemoAdministration() {
   const [receivables, setReceivables] = useState<DemoReceivable[]>([]);
   const [message, setMessage] = useState("");
-  const refresh = () => setReceivables(getDemoState().receivables);
+  const refresh = () => setReceivables(getDemoPlatformState().receivables);
 
   useEffect(() => {
     queueMicrotask(refresh);

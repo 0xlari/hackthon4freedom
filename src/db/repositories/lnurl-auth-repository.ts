@@ -130,6 +130,25 @@ export async function findActiveSession<THKT extends PgQueryResultHKT>(
   return session ?? null;
 }
 
+export async function findActiveSessionProfile<THKT extends PgQueryResultHKT>(
+  db: PgDatabase<THKT, typeof schema>,
+  rawToken: string,
+  now = new Date(),
+) {
+  const [profile] = await db.select({
+    sessionId: appSessions.id,
+    userId: appSessions.userId,
+    profileId: users.reputationId,
+    expiresAt: appSessions.expiresAt,
+  }).from(appSessions).innerJoin(users, eq(users.id, appSessions.userId)).where(and(
+    eq(appSessions.tokenHash, sha256Hex(rawToken)),
+    isNull(appSessions.revokedAt),
+    gt(appSessions.expiresAt, now),
+  )).limit(1);
+  if (!profile) return null;
+  return { ...profile, profileId: profile.profileId?.toString() ?? profile.userId };
+}
+
 export async function revokeSession<THKT extends PgQueryResultHKT>(
   db: PgDatabase<THKT, typeof schema>,
   rawToken: string,

@@ -1,5 +1,15 @@
 # Registro de decisões
 
+## ADR-039 — sessão e perfil separados por carteira
+
+- **Data:** 2026-07-19
+- **Status:** implementada no fluxo demonstrativo
+- **Contexto:** LNURL-auth já associava a linking key específica do domínio a um usuário distinto, mas a API de sessão devolvia somente um booleano e todo o estado demonstrativo era salvo numa única chave do navegador. Assim, carteiras diferentes no mesmo navegador pareciam acessar a mesma conta.
+- **Decisão:** a sessão `HttpOnly` continua sendo a única credencial da aplicação e passa a devolver apenas um `reputation_id` opaco e um rótulo curto. Recebíveis, pools originadas e aportes demonstrativos são isolados por esse perfil. A opção “Trocar carteira” revoga a sessão atual antes de emitir novo desafio LNURL-auth. A mesma linking key no mesmo domínio recupera o mesmo perfil; chaves diferentes criam perfis diferentes.
+- **Privacidade:** pubkey, linking key, assinatura, hash do autenticador e token de sessão não são devolvidos à interface. O estado legado não é atribuído automaticamente a nenhuma carteira, porque não existe prova segura de propriedade.
+- **Limitação:** o perfil e a autenticação são persistidos no PostgreSQL, mas o roteiro demonstrativo de recebíveis e aportes permanece no navegador, agora separado por perfil. Sincronização entre dispositivos exige ligar esses históricos aos repositórios PostgreSQL em etapa posterior.
+- **Consequências:** testes devem provar isolamento entre carteiras, recuperação do mesmo perfil, revogação na troca e ausência de acesso horizontal.
+
 ## ADR-001 — público aberto com foco em mulheres
 
 - **Data:** 2026-07-14

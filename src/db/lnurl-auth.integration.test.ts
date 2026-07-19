@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { authenticateLnurlChallenge, completeLnurlAuthChallenge, findActiveSession, issueLnurlAuthChallenge } from "@/db/repositories/lnurl-auth-repository";
+import { authenticateLnurlChallenge, completeLnurlAuthChallenge, findActiveSession, findActiveSessionProfile, issueLnurlAuthChallenge } from "@/db/repositories/lnurl-auth-repository";
 import { sha256Hex } from "@/domain/lnurl-auth";
 import * as schema from "@/db/schema";
 
@@ -32,6 +32,7 @@ describe("LNURL-auth persistence", () => {
     if (completed.status !== "AUTHENTICATED") throw new Error("expected session");
     expect(completed.userId).toBe(authenticated.userId);
     expect(await findActiveSession(database, completed.sessionToken, now)).toMatchObject({ userId: authenticated.userId });
+    expect(await findActiveSessionProfile(database, completed.sessionToken, now)).toMatchObject({ userId: authenticated.userId });
 
     const rows = await postgres.query<{ token_hash: string; reputation_id: string }>("select s.token_hash, u.reputation_id::text from app_sessions s join users u on u.id = s.user_id");
     expect(rows.rows[0]?.token_hash).not.toBe(completed.sessionToken);
@@ -48,5 +49,16 @@ describe("LNURL-auth persistence", () => {
     const firstUser = await authenticateLnurlChallenge(database, { k1: new URL(first.callbackUrl).searchParams.get("k1")!, linkingKeyHash: keyHash, now });
     const secondUser = await authenticateLnurlChallenge(database, { k1: new URL(second.callbackUrl).searchParams.get("k1")!, linkingKeyHash: keyHash, now });
     expect(secondUser.userId).toBe(firstUser.userId);
+  });
+
+  it("maps different wallet keys to separate opaque profiles", async () => {
+    const now = new Date("2026-07-16T14:00:00.000Z");
+    const first = await issueLnurlAuthChallenge(database, { callbackBaseUrl: "https://auth.agendacryptoo.com", now });
+    const second = await issueLnurlAuthChallenge(database, { callbackBaseUrl: "https://auth.agendacryptoo.com", now });
+    const firstUser = await authenticateLnurlChallenge(database, { k1: new URL(first.callbackUrl).searchParams.get("k1")!, linkingKeyHash: sha256Hex("wallet-a"), now });
+    const secondUser = await authenticateLnurlChallenge(database, { k1: new URL(second.callbackUrl).searchParams.get("k1")!, linkingKeyHash: sha256Hex("wallet-b"), now });
+    expect(secondUser.userId).not.toBe(firstUser.userId);
+    const rows = await postgres.query<{ id: string; reputation_id: string }>("select id, reputation_id::text from users where id in ($1, $2) order by id", [firstUser.userId, secondUser.userId]);
+    expect(new Set(rows.rows.map((row) => row.reputation_id)).size).toBe(2);
   });
 });

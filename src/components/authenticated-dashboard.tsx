@@ -19,6 +19,7 @@ const missions = [
 
 export function AuthenticatedDashboard() {
   const [access, setAccess] = useState<AccessState>("checking");
+  const [profile, setProfile] = useState<{ id: string; label: string }>();
   const [receivables, setReceivables] = useState<DemoReceivable[]>([]);
   const [contributions, setContributions] = useState<DemoContribution[]>([]);
   const router = useRouter();
@@ -26,9 +27,14 @@ export function AuthenticatedDashboard() {
   useEffect(() => {
     let active = true;
     fetch("/api/auth/session", { cache: "no-store" })
-      .then((response) => {
+      .then(async (response) => {
         if (!active) return;
-        if (response.ok) setAccess("authenticated");
+        if (response.ok) {
+          const body = await response.json() as { profile?: { id: string; label: string } };
+          if (!body.profile?.id) throw new Error("SESSION_PROFILE_MISSING");
+          setProfile(body.profile);
+          setAccess("authenticated");
+        }
         else {
           setAccess("anonymous");
           router.replace("/entrar?next=/painel");
@@ -43,15 +49,16 @@ export function AuthenticatedDashboard() {
   }, [router]);
 
   useEffect(() => {
+    if (!profile) return;
     const refresh = () => {
-      const state = getDemoState();
+      const state = getDemoState(profile.id);
       setReceivables(state.receivables);
       setContributions(state.contributions);
     };
     queueMicrotask(refresh);
     window.addEventListener(DEMO_CHANGED_EVENT, refresh);
     return () => window.removeEventListener(DEMO_CHANGED_EVENT, refresh);
-  }, []);
+  }, [profile]);
 
   if (access !== "authenticated") {
     return <div className="dashboard-loading" role="status">{access === "checking" ? "Confirmando sua carteira…" : "Redirecionando para o acesso…"}</div>;
@@ -61,7 +68,7 @@ export function AuthenticatedDashboard() {
     <div className="dashboard">
       <section className="dashboard-hero">
         <div>
-          <span className="eyebrow"><BadgeCheck aria-hidden="true" size={16} /> Carteira conectada</span>
+          <span className="eyebrow"><BadgeCheck aria-hidden="true" size={16} /> Carteira conectada · {profile?.label}</span>
           <h1>O que você quer fazer hoje?</h1>
           <p>Crie um recebível para antecipar ou encontre uma pool BTC para aportar.</p>
         </div>

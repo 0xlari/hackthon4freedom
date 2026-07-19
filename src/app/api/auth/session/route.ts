@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { databaseFromEnvironment } from "@/db/client";
-import { findActiveSession, revokeSession } from "@/db/repositories/lnurl-auth-repository";
+import { findActiveSessionProfile, revokeSession } from "@/db/repositories/lnurl-auth-repository";
 
 export const runtime = "nodejs";
 const privateHeaders = { "Cache-Control": "no-store, private" };
@@ -15,8 +15,15 @@ export async function GET(request: Request) {
   if (!token) return NextResponse.json({ authenticated: false }, { status: 401, headers: privateHeaders });
   const bundle = databaseFromEnvironment();
   try {
-    const session = await findActiveSession(bundle.db, decodeURIComponent(token));
-    return NextResponse.json({ authenticated: Boolean(session) }, { status: session ? 200 : 401, headers: privateHeaders });
+    const session = await findActiveSessionProfile(bundle.db, decodeURIComponent(token));
+    if (!session) return NextResponse.json({ authenticated: false }, { status: 401, headers: privateHeaders });
+    return NextResponse.json({
+      authenticated: true,
+      profile: {
+        id: session.profileId,
+        label: `Perfil ${session.profileId.slice(0, 8)}`,
+      },
+    }, { headers: privateHeaders });
   } finally {
     await bundle.close();
   }

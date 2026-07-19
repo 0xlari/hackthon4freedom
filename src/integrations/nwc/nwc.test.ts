@@ -37,7 +37,9 @@ describe("NWC connection security", () => {
     const encrypted = encryptNwcSecret(secret);
     expect(encrypted).not.toContain(secret);
     expect(decryptNwcSecret(encrypted)).toBe(secret);
-    expect(() => decryptNwcSecret(`${encrypted.slice(0, -1)}A`)).toThrow();
+    const tampered = Buffer.from(encrypted, "base64url");
+    tampered[tampered.length - 1] ^= 1;
+    expect(() => decryptNwcSecret(tampered.toString("base64url"))).toThrow();
   });
 
   it("never leaves URI, secret or preimage in sanitized values", () => {

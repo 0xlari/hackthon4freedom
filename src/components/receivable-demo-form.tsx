@@ -10,13 +10,20 @@ const DEMO_MAX_DATE = new Date(Date.now() + 90 * 86_400_000).toISOString().slice
 
 export function ReceivableDemoForm() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [profileId, setProfileId] = useState("");
   const [created, setCreated] = useState<DemoReceivable>();
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    fetch("/api/auth/session", { cache: "no-store" }).then((response) => setAuthenticated(response.ok)).catch(() => setAuthenticated(false));
-    queueMicrotask(() => setCreated(getDemoState().receivables[0]));
+    fetch("/api/auth/session", { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) return setAuthenticated(false);
+      const body = await response.json() as { profile?: { id: string } };
+      if (!body.profile?.id) return setAuthenticated(false);
+      setProfileId(body.profile.id);
+      setCreated(getDemoState(body.profile.id).receivables[0]);
+      setAuthenticated(true);
+    }).catch(() => setAuthenticated(false));
   }, []);
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -24,7 +31,7 @@ export function ReceivableDemoForm() {
     setError("");
     const data = new FormData(event.currentTarget);
     try {
-      const receivable = createDemoReceivable({
+      const receivable = createDemoReceivable(profileId, {
         purpose: String(data.get("purpose")) as DemoReceivable["purpose"],
         description: String(data.get("description")),
         amountUsd: Number(data.get("amountUsd")),
@@ -47,7 +54,7 @@ export function ReceivableDemoForm() {
   if (!authenticated) return <div className="demo-callout"><strong>Conecte sua carteira para continuar.</strong><a className="button button--primary" href="/entrar?next=/recebivel">Entrar com a carteira</a></div>;
 
   if (created && !["AWAITING_CLIENT", "REJECTED"].includes(created.status)) {
-    const pool = getDemoState().pools.find((item) => item.title === created.description);
+    const pool = getDemoState(profileId).pools.find((item) => item.title === created.description);
     const underReview = created.status === "UNDER_REVIEW";
     return <section className="demo-success">
       <CheckCircle2 aria-hidden="true" />
