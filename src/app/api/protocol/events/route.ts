@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { protocolSignedEventSchema } from "@protocol/schemas";
-import { validateProtocolEvent } from "@protocol/validators";
+import { validatePoolCreationGraph, validateProtocolEvent } from "@protocol/validators";
 import { NostrToolsRelayClient, protocolRelaysFromEnvironment } from "@nostr/relays";
 import { publishToRelaySet } from "@nostr/publisher";
 import { subscribeProtocolEvents } from "@nostr/subscriber";
@@ -25,6 +25,13 @@ export async function POST(request: Request) {
     const event = protocolSignedEventSchema.parse(await request.json()); enforceRateLimit(`protocol:publish:${event.pubkey}`, 12);
     const verification = validateProtocolEvent(event);
     if (!verification.valid) return NextResponse.json({ error: verification.reason }, { status: 400, headers: privateHeaders });
+    const content = JSON.parse(event.content) as { event_type?: string; receivable_event_id?: string; payer_commitment_event_id?: string; approval_event_id?: string; nwc_attestation_event_id?: string };
+    if (content.event_type === "PoolCreated") {
+      const referencedIds = [content.receivable_event_id, content.payer_commitment_event_id, content.approval_event_id, content.nwc_attestation_event_id].filter((id): id is string => Boolean(id));
+      const prerequisites = await subscribeProtocolEvents(relayClients, { eventIds: referencedIds, limit: 20 }, verifyProtocolEventForSubscription);
+      const graphValidation = validatePoolCreationGraph(event, prerequisites.events);
+      if (!graphValidation.valid) return NextResponse.json({ error: graphValidation.reason }, { status: 409, headers: privateHeaders });
+    }
     await withSessionProfile(request, async ({ profile }) => {
       if (profile.nostrPubkey !== event.pubkey) throw new Error("PROTOCOL_SIGNER_NOT_LINKED_TO_SESSION");
     });
