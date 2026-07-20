@@ -67,6 +67,25 @@ O plano de execução específico da Etapa 10 está em `docs/18-fedi-comunidade-
 
 Atualizar este arquivo ao concluir cada etapa, com links para testes, decisões e limitações. Não avançar com testes financeiros quebrados sem registrar bloqueio e impacto.
 
+## Protocolo Nostr-native experimental v0.1
+
+Esta trilha substitui incrementalmente a fonte canônica dos estados públicos, sem remover o fluxo atual antes de existir reconstrução verificável. Cada item deve ser um commit separado e nenhum item habilita mainnet ou dinheiro real.
+
+- [x] 1. Especificação, ADRs e catálogo central de kinds.
+- [ ] 2. Schemas puros e vetores canônicos.
+- [ ] 3. Adapters de signer NIP-07, NIP-46, aplicativo externo e fake de teste.
+- [ ] 4. Publisher/subscriber com três relays e quórum de dois ACKs positivos.
+- [ ] 5. Builders, validators e prevenção de PII/segredos.
+- [ ] 6. Reducers, grafo de referências e matriz de autoridades.
+- [ ] 7. Cache apagável e comando `protocol:rebuild-cache`.
+- [ ] 8. Criação e assinatura de recebível.
+- [ ] 9. Decisão do cliente e atestado NWC público, mantendo credencial cifrada.
+- [ ] 10. Assinatura e publicação da pool.
+- [ ] 11. Página pública reconstruída exclusivamente do grafo Nostr.
+- [ ] 12. E2E desktop/mobile, reconstrução em outro navegador e documentação final.
+
+Fontes normativas: ADR-041, ADR-042 e `docs/protocol/`. Os critérios finais exigem pool confirmada por 2 de 3 relays, reconstrução sem tabela canônica, NWC privada, cache reproduzível e suíte completa verde.
+
 ### Registro de 2026-07-14
 
 Etapa 0 concluída e validada em `docs/14-guardrails-operacionais.md`.

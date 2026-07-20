@@ -12,7 +12,7 @@ export default defineConfig({
     fileParallelism: false,
     hookTimeout: 30_000,
     setupFiles: ["./vitest.setup.ts"],
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["src/**/*.test.{ts,tsx}", "packages/*/src/**/*.test.{ts,tsx}"],
     maxWorkers: 1,
     testTimeout: 15_000,
   },

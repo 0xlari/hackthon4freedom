@@ -281,9 +281,27 @@
 - **Decisão:** após confirmar o recebível, o pagador pode conectar Nostr Wallet Connect para uma solicitação automática única no vencimento ou escolher pagamento manual com qualquer carteira Lightning. NWC é autorização de pagamento, não login, conta Nostr ou assinatura LNURL-auth. O secret é cifrado no servidor e nunca retorna ao frontend; a plataforma aplica vencimento, valor máximo, tarifa, expiração, revogação e bloqueio após sucesso.
 - **Consequências:** `info` e `pay_invoice` seguem NIP-47 atrás de adapter. Saldo e pagamento futuro não são garantidos. Falha definitiva expõe a invoice manual sem nova cobrança; resultado desconhecido exige conciliação. `NWC_ENABLE_LIVE` fica desligado; testes e demo usam fakes sem fundos. A referência de sats antes da cotação final não é preço garantido.
 
-## ADR-039 — conexão NWC de um clique como experiência principal
+## ADR-040 — conexão NWC de um clique como experiência principal
 
 - **Data:** 2026-07-19
 - **Status:** experiência implementada; ativação financeira permanece não autorizada
 - **Decisão:** a conexão do pagador usa Bitcoin Connect filtrado para NWC, solicita somente `pay_invoice`, não consulta saldo e não persiste a conexão no navegador. No celular, a biblioteca pode abrir uma carteira compatível; entre computador e celular, apresenta o pareamento para leitura pela própria carteira. A conexão devolvida é enviada à API existente para validação e armazenamento cifrado. URI manual deixa a experiência principal e permanece somente em “Opções avançadas”, em campo do tipo senha. Pagamento manual continua disponível.
 - **Consequências:** a plataforma não promete automação para carteiras sem NWC ou que não devolvam uma credencial utilizável pelo executor agendado. A compatibilidade deve ser verificada por carteira e versão. O botão simplifica o pareamento, mas não remove limites, revogação, idempotência, fallback manual ou a necessidade de autorização operacional para mainnet. O desenho completo está em `docs/19-pagamento-automatico-nwc-um-clique.md`.
+
+## ADR-041 — eventos Nostr como fonte canônica do estado público
+
+- **Data:** 2026-07-20
+- **Status:** aprovada para implementação experimental v0.1; sem ativação financeira
+- **Contexto:** recebíveis e pools públicos hoje derivam de tabelas ou estado demonstrativo local, impedindo verificação e reconstrução independentes. A nova versão requer autoria portável, decisões de validação por cliente e projeções reproduzíveis.
+- **Decisão:** a pubkey e a assinatura Nostr determinam autoria dos eventos do protocolo. Eventos válidos e seu grafo tornam-se a fonte canônica do estado público; PostgreSQL permanece permitido para dados privados, sessões, NWC cifrado, scheduler, auditoria e cache reconstruível. LNURL-auth continua como sessão interna vinculável a uma pubkey, mas não assina eventos. Os kinds 8100–8114 são experimentais e versionados; somente sete tipos descritos em `docs/protocol/` serão aceitos em `0.1.0`. Decisões `APPROVED`, `REJECTED` e `NEEDS_INFORMATION` pertencem ao cliente que as assinou, permitindo que outro cliente avalie o mesmo recebível.
+- **Consequências:** esta decisão substitui, somente no protocolo experimental, a exclusividade de validação das ADR-002/025, a restrição de Nostr apenas à reputação das ADR-032/033 e a opcionalidade de NWC da ADR-038 para criação de pool. A experiência NWC da ADR-040 continua reutilizável. Nenhuma decisão habilita mainnet, pagamento, aporte, DLC ou publicação de dados privados. Cache, UI e banco serão migrados incrementalmente e o fluxo atual permanece até a projeção Nostr ser validada.
+
+## ADR-042 — concentração temporária de papéis no cliente originador
+
+- **Data:** 2026-07-20
+- **Status:** limitação aceita exclusivamente para a versão experimental do hackathon
+- **Contexto:** separar imediatamente todos os agentes impediria a entrega da vertical verificável no prazo, mas ocultar a concentração criaria uma falsa promessa de descentralização.
+- **Decisão:** na v0.1, o cliente originador concentra validação, armazenamento NWC cifrado, contraparte do futuro DLC, executor NWC, carteira operacional, oráculo e coordenação da liquidação. Seus eventos são assinados, limitados por autoridade e auditáveis; segredos permanecem privados; pagamentos, DLC e mainnet continuam desabilitados. A interface e `PoolCreated` devem declarar essa concentração.
+- **Riscos e controles:** censura, indisponibilidade, conflito de interesse e contraparte única são riscos conhecidos. Controles mínimos são eventos verificáveis, três relays com quórum 2, dados minimizados, NWC revogável, idempotência, bloqueio em resultado desconhecido, fakes sem fundos e logs sanitizados.
+- **Plano obrigatório:** separar cliente, validador, contraparte, executor, carteira, oráculo e árbitro; permitir escolha de executor e agentes do pagador; usar oráculos 2 de 3; remover contraparte única; garantir continuidade sem o originador; e descentralizar disputas, conforme `docs/protocol/10-decentralization-roadmap.md`.
+- **Critério de saída:** a centralização só é removida quando nenhuma entidade isolada puder validar e executar a obrigação, existir substituição de executor, a operação continuar sem o originador, fatos críticos exigirem quórum independente e disputas tiverem procedimento fora dele, todos demonstrados por testes interoperáveis.
