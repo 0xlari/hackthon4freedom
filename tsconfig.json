@@ -15,7 +15,9 @@
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@protocol/*": ["./packages/protocol/src/*"],
+      "@nostr/*": ["./packages/nostr/src/*"]
     }
   },
   "include": [

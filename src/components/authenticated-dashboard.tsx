@@ -109,6 +109,8 @@ export function AuthenticatedDashboard() {
 
       <section className="dashboard-privacy dashboard-admin-demo"><FlaskConical aria-hidden="true" /><div><h2>Aprovação da plataforma no hackathon</h2><p>A área administrativa está aberta e sem senha somente para demonstrar a avaliação e a criação automática da pool.</p></div><ButtonLink href="/administracao" variant="secondary">Abrir administração</ButtonLink></section>
 
+      <section className="dashboard-privacy"><Radio aria-hidden="true" /><div><h2>Protocolo Nostr-native experimental</h2><p>Assine um recebível com seu signer Nostr e acompanhe o grafo público reconstruível. Nenhum fundo real é movimentado.</p></div><ButtonLink href="/protocolo" variant="secondary">Abrir protocolo v0.1</ButtonLink></section>
+
       <section className="dashboard-section" aria-labelledby="missions-title">
         <div className="dashboard-section__heading">
           <div><span className="kicker">Limite e reputação</span><h2 id="missions-title">Missões para avançar</h2></div>
