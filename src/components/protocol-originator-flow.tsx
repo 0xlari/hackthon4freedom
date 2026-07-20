@@ -8,6 +8,7 @@ import type { ProtocolSignedEvent, ReceivableCreated } from "@protocol/schemas";
 import { Nip07Signer, type Nip07Window } from "@nostr/signer";
 
 type RelayResult = { events: ProtocolSignedEvent[] };
+type NwcPreparation = { maxAmountMsat: string; dueAt: string; expiresAt: string; safeFingerprint: string; lastValidatedAt: string };
 
 async function sha256(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
@@ -52,16 +53,20 @@ export function ProtocolOriginatorFlow({ receivableEventId }: { receivableEventI
     try {
       const data = new FormData(event.currentTarget); const decision = String(data.get("decision")) as "APPROVED" | "REJECTED" | "NEEDS_INFORMATION";
       const now = Math.floor(Date.now() / 1000); const nonce = crypto.randomUUID();
+      let nwc: NwcPreparation | undefined;
+      if (decision === "APPROVED") {
+        setStatus("Validando pay_invoice e guardando a URI NWC criptografada…");
+        const dueAt = new Date(receivable.content.due_at * 1000); const expiresAt = new Date(dueAt.getTime() + 3 * 86_400_000);
+        const nwcResponse = await fetch("/api/protocol/nwc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "prepare", receivableEventId: receivable.event.id, nwcUri: String(data.get("nwcUri")), maxAmountMsat: String(data.get("maxAmountMsat")), dueAt: dueAt.toISOString(), expiresAt: expiresAt.toISOString() }) });
+        const rawNwc = await nwcResponse.json(); if (!nwcResponse.ok) throw new Error((rawNwc as { error?: string }).error ?? "Conexão NWC inválida."); nwc = rawNwc as NwcPreparation;
+      }
       const privateConfirmationHash = await sha256(JSON.stringify({ receivable: receivable.event.id, terms: "originator-v0.1", acceptsBitcoin: true, nonce }));
       setStatus("Assinando a confirmação privada do cliente…");
       const commitment = await publish(signer, buildPayerCommitmentProof({ protocol_version: "0.1.0", event_type: "PayerCommitmentProof", proof_id: crypto.randomUUID(), receivable_event_id: receivable.event.id, private_confirmation_hash: privateConfirmationHash, confirmed_at: now, terms_version: "originator-v0.1", accepts_bitcoin: true, has_nwc_authorization: decision === "APPROVED", originator_pubkey: pubkey }));
       setStatus("Assinando a decisão independente…");
       const validation = await publish(signer, buildClientValidationDecision({ protocol_version: "0.1.0", event_type: "ClientValidationDecision", decision_id: crypto.randomUUID(), receivable_event_id: receivable.event.id, decision, policy_version: "hackathon-v0.1", reason_codes: [String(data.get("reasonCode") || "TERMS_VERIFIED").toUpperCase().replace(/[^A-Z0-9_]/g, "_")], decided_at: now, client_pubkey: pubkey }));
       if (decision !== "APPROVED") { setDone(true); setStatus(`Decisão ${decision} publicada. Nenhuma pool pode ser criada com esta decisão.`); return; }
-      setStatus("Validando pay_invoice e guardando a URI NWC criptografada…");
-      const dueAt = new Date(receivable.content.due_at * 1000); const expiresAt = new Date(dueAt.getTime() + 3 * 86_400_000);
-      const nwcResponse = await fetch("/api/protocol/nwc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "prepare", receivableEventId: receivable.event.id, nwcUri: String(data.get("nwcUri")), maxAmountMsat: String(data.get("maxAmountMsat")), dueAt: dueAt.toISOString(), expiresAt: expiresAt.toISOString() }) });
-      const nwc = await nwcResponse.json(); if (!nwcResponse.ok) throw new Error(nwc.error ?? "Conexão NWC inválida.");
+      if (!nwc) throw new Error("NWC_PREPARATION_MISSING");
       setStatus("Assinando apenas o atestado público, sem URI ou segredo…");
       const attestation = await publish(signer, buildNwcAuthorizationAttestation({ protocol_version: "0.1.0", event_type: "NwcAuthorizationAttestation", attestation_id: crypto.randomUUID(), receivable_event_id: receivable.event.id, authorization_state: "ACTIVE", pay_invoice_supported: true, max_authorized_msat: nwc.maxAmountMsat, due_at: Math.floor(new Date(nwc.dueAt).getTime() / 1000), expires_at: Math.floor(new Date(nwc.expiresAt).getTime() / 1000), single_use: true, safe_fingerprint: nwc.safeFingerprint, last_validated_at: Math.floor(new Date(nwc.lastValidatedAt).getTime() / 1000), executor_pubkey: pubkey }));
       await fetch("/api/protocol/nwc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "record_attestation", receivableEventId: receivable.event.id, attestationEventId: attestation.id }) });
@@ -77,7 +82,7 @@ export function ProtocolOriginatorFlow({ receivableEventId }: { receivableEventI
     <form onSubmit={submit}><h2>2. Analisar e autorizar</h2><div className="form-grid">
       <label>Decisão<select name="decision" defaultValue="APPROVED"><option value="APPROVED">Aprovar</option><option value="NEEDS_INFORMATION">Pedir informações</option><option value="REJECTED">Rejeitar</option></select></label>
       <label>Código do motivo<input name="reasonCode" defaultValue="TERMS_VERIFIED" pattern="[A-Za-z0-9_]{2,64}" required /></label>
-      <label className="form-grid__wide">Conexão NWC obrigatória para aprovação<textarea name="nwcUri" placeholder="nostr+walletconnect://…" required /></label>
+      <label className="form-grid__wide">Conexão NWC obrigatória somente para aprovação<textarea name="nwcUri" placeholder="nostr+walletconnect://…" /></label>
       <label>Limite autorizado (msat)<input name="maxAmountMsat" inputMode="numeric" pattern="[0-9]+" defaultValue="100000000" required /></label>
     </div><p>Você pode gerar uma conexão na Coinos ou usar qualquer serviço NWC compatível com <code>pay_invoice</code>. A conexão autoriza execução limitada; não é uma carteira Nostr e não garante o pagamento.</p><button className="button button--primary" disabled={!signer || !receivable}>Confirmar, assinar e publicar</button></form>
     <p role="status">{status}</p>{done ? <Link className="button button--primary" href={`/protocolo?receivable=${receivableEventId}`}>Voltar para a prestadora revisar a pool</Link> : null}
