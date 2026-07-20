@@ -20,6 +20,8 @@ export class InMemoryRelayClient implements ProtocolRelayClient {
   }
 
   async query(filter: RelayFilter) {
+    if (this.behavior === "TIMEOUT") throw Object.assign(new Error("RELAY_TIMEOUT"), { code: "RELAY_TIMEOUT" });
+    if (this.behavior === "REJECT") throw new Error("RELAY_UNAVAILABLE");
     const includesTag = (event: ProtocolSignedEvent, name: string, values?: readonly string[]) => !values || event.tags.some((tag) => tag[0] === name && tag[1] && values.includes(tag[1]));
     return [...this.events.values()].filter((event) =>
       (!filter.kinds || filter.kinds.includes(event.kind)) &&
