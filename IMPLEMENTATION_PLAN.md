@@ -72,17 +72,17 @@ Atualizar este arquivo ao concluir cada etapa, com links para testes, decisões 
 Esta trilha substitui incrementalmente a fonte canônica dos estados públicos, sem remover o fluxo atual antes de existir reconstrução verificável. Cada item deve ser um commit separado e nenhum item habilita mainnet ou dinheiro real.
 
 - [x] 1. Especificação, ADRs e catálogo central de kinds.
-- [ ] 2. Schemas puros e vetores canônicos.
-- [ ] 3. Adapters de signer NIP-07, NIP-46, aplicativo externo e fake de teste.
-- [ ] 4. Publisher/subscriber com três relays e quórum de dois ACKs positivos.
-- [ ] 5. Builders, validators e prevenção de PII/segredos.
-- [ ] 6. Reducers, grafo de referências e matriz de autoridades.
-- [ ] 7. Cache apagável e comando `protocol:rebuild-cache`.
-- [ ] 8. Criação e assinatura de recebível.
-- [ ] 9. Decisão do cliente e atestado NWC público, mantendo credencial cifrada.
-- [ ] 10. Assinatura e publicação da pool.
-- [ ] 11. Página pública reconstruída exclusivamente do grafo Nostr.
-- [ ] 12. E2E desktop/mobile, reconstrução em outro navegador e documentação final.
+- [x] 2. Schemas puros e vetores canônicos.
+- [x] 3. Adapters de signer NIP-07, NIP-46, aplicativo externo e fake de teste.
+- [x] 4. Publisher/subscriber com três relays e quórum de dois ACKs positivos.
+- [x] 5. Builders, validators e prevenção de PII/segredos.
+- [x] 6. Reducers, grafo de referências e matriz de autoridades.
+- [x] 7. Cache apagável e comando `protocol:rebuild-cache`.
+- [x] 8. Criação e assinatura de recebível.
+- [x] 9. Decisão do cliente e atestado NWC público, mantendo credencial cifrada.
+- [x] 10. Assinatura e publicação da pool.
+- [x] 11. Página pública reconstruída exclusivamente do grafo Nostr.
+- [x] 12. E2E desktop/mobile, reconstrução em outro navegador e documentação final.
 
 Fontes normativas: ADR-041, ADR-042 e `docs/protocol/`. Os critérios finais exigem pool confirmada por 2 de 3 relays, reconstrução sem tabela canônica, NWC privada, cache reproduzível e suíte completa verde.
 

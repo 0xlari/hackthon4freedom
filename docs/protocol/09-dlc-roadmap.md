@@ -2,11 +2,13 @@
 
 ## Estado desta versão
 
-DLC real não faz parte da vertical v0.1. Serão definidos apenas interfaces, schemas de prova e fake determinístico em etapa posterior. Nenhum aporte on-chain, funding transaction ou settlement será criado.
+DLC real não faz parte da vertical v0.1. As interfaces, o schema público mínimo da prova de funding e o fake determinístico estão implementados em `packages/protocol/src/dlc`. Nenhum aporte on-chain, funding transaction ou settlement é criado.
 
 ## Interface futura
 
 O gateway deverá separar criação de oferta, aceite, prova de funding e consulta de status. A contraparte inicial será o cliente originador, explicitamente centralizado e substituível.
+
+O fake usa somente identificadores determinísticos e a rede nominal `regtest-simulation`. Ele existe para testar contratos de integração; não contém wallet, chave, RPC Bitcoin, broadcast ou caminho de mainnet.
 
 ## Guardrails futuros
 

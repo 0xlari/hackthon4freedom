@@ -7,3 +7,5 @@ export * from "./validators";
 export * from "./authorities";
 export * from "./references";
 export * from "./reducers";
+export * from "./dlc";
+export * from "./nwc-scheduler";

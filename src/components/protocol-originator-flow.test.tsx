@@ -1,12 +1,13 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { finalizeEvent, generateSecretKey, getPublicKey } from "nostr-tools";
 
 import { ProtocolOriginatorFlow } from "./protocol-originator-flow";
 
-const eventId = "a".repeat(64); const pubkey = "b".repeat(64);
+const eventId = "a".repeat(64); const secretKey = generateSecretKey(); const pubkey = getPublicKey(secretKey);
 describe("ProtocolOriginatorFlow", () => {
   beforeEach(() => {
-    Object.defineProperty(window, "nostr", { configurable: true, value: { getPublicKey: vi.fn().mockResolvedValue(pubkey), signEvent: vi.fn(async (event) => ({ ...event, id: crypto.randomUUID().replaceAll("-", "").padEnd(64, "0").slice(0, 64), pubkey, sig: "c".repeat(128) })) } });
+    Object.defineProperty(window, "nostr", { configurable: true, value: { getPublicKey: vi.fn().mockResolvedValue(pubkey), signEvent: vi.fn(async (event) => finalizeEvent(event, secretKey)) } });
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.startsWith("/api/protocol/events?")) return new Response(JSON.stringify({ events: [{ id: eventId, pubkey: "d".repeat(64), sig: "e".repeat(128), kind: 8101, created_at: 1, tags: [], content: JSON.stringify({ event_type: "ReceivableCreated", title: "Projeto", provider_pseudonym: "Ada", original_currency: "USD", nominal_amount_minor: "10000", due_at: Math.floor(Date.now()/1000)+86400 }) }] }));

@@ -11,6 +11,9 @@ importers:
       '@breeztech/breez-sdk-liquid':
         specifier: 0.12.4
         version: 0.12.4
+      '@getalby/bitcoin-connect-react':
+        specifier: ^3.12.3
+        version: 3.12.3(@types/react@19.2.17)(react@19.2.7)(typescript@5.9.3)
       '@noble/curves':
         specifier: 2.0.1
         version: 2.0.1
@@ -767,6 +770,22 @@ packages:
       '@noble/hashes':
         optional: true
 
+  '@getalby/bitcoin-connect-react@3.12.3':
+    resolution: {integrity: sha512-TflmUi6+BDPyBtSmxpTCCXHLA1oTCK/tesX3z5+Fh44a8pmQO7MxmrAcWIccWF/cPmrkpxciail9DXY8GBnU/Q==}
+    peerDependencies:
+      react: '>=18.2.0'
+
+  '@getalby/bitcoin-connect@3.12.3':
+    resolution: {integrity: sha512-2d+tNHBCZBoImKJgZwTUOyK9ypXaTg/hwvtQ8EHbgSKKkuycOrks7SzlUc0iJHthD3JGFVMWZEgOgw4AQVVE4w==}
+
+  '@getalby/lightning-tools@8.2.0':
+    resolution: {integrity: sha512-eL+cnHyzeUARKVzNRuFBRBppAU5RBJOLjhFVzSWt8hDibRzL5+e4hq8I79+RGHfrWWMUDv382Jx8ewOazrBj7w==}
+    engines: {node: '>=14'}
+
+  '@getalby/sdk@8.0.3':
+    resolution: {integrity: sha512-vPEogAWwLHbL55COeXrRN7yRBXMDGDxX1M2A+o3Lqw60FFng6fa9FK9sw8ptdILMD1dQZq8FzPXuabQ7seoDBA==}
+    engines: {node: '>=22'}
+
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
     engines: {node: '>=18.18.0'}
@@ -955,6 +974,12 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@lightninglabs/lnc-core@0.3.6-alpha':
+    resolution: {integrity: sha512-ObzY5wi+PS0GQduFHYDjGJpYZxKD27vtMf3fUVne2gGNMej1mvvJAOwATgef8YV/IZodAzy73Z/F2zfaQ+iE4Q==}
+
+  '@lightninglabs/lnc-web@0.3.6-alpha':
+    resolution: {integrity: sha512-oiL1mKlbEjb1lcmNAHA0Gn+mlx5oQOJ8YVONJR/vgo4QLmL/48EyA12QbZ71mP9li45hGOoGqpYMRwBYtIeFog==}
 
   '@napi-rs/wasm-runtime@1.1.6':
     resolution: {integrity: sha512-ZLv/JdUfkvOy9eCnnBaGfiO+XimbjebAeO+MRQqD/B+FR1tnRN0tpKSJHRbE8sFfS6aqsXZ67TQjfwfsxULVbg==}
@@ -1707,6 +1732,9 @@ packages:
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
+
+  crypto-js@4.2.0:
+    resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
 
   css-tree@3.2.1:
     resolution: {integrity: sha512-X7sjQzceUhu1u7Y/ylrRZFU2FS6LRiFVp6rKLPg23y3x3c3DOKAwuXGDp+PAGjh6CSnCjYeAul8pcT8bAl+lSA==}
@@ -2812,6 +2840,9 @@ packages:
   pure-rand@8.4.2:
     resolution: {integrity: sha512-vvuOGgcuPJAirlHvuQw1TrOiw7ptaIXXmIbNuiNOY6lNGJJH49PQ1Kj4nd783nPdQhQdicgOjVI2yI/9BD6/Ng==}
 
+  qrcode-generator@1.4.4:
+    resolution: {integrity: sha512-HM7yY8O2ilqhmULxGMpcHSF1EhJJ9yBj8gvDEuZ6M+KGJ0YY2hKpnXvRD+hZPLrDVck3ExIGhmPtSdcjC+guuw==}
+
   qrcode@1.5.4:
     resolution: {integrity: sha512-1ca71Zgiu6ORjHqFBDpnSMTR2ReToX4l1Au1VFLyVeBTFavzQnv5JxMFr3ukHVKpSrSA2MCk0lNJSykjUfz7Zg==}
     engines: {node: '>=10.13.0'}
@@ -3331,6 +3362,24 @@ packages:
   zod@4.4.3:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
+  zustand@5.0.14:
+    resolution: {integrity: sha512-/8tAspM5LMPr28b3fwLYrtdj77ECpfZviaP75CMTnwO8ISyaE4GDIG/9rDDYq/cH9D2Xw2A2RXglLInmVBQB/g==}
+    engines: {node: '>=12.20.0'}
+    peerDependencies:
+      '@types/react': '>=18.0.0'
+      immer: '>=9.0.6'
+      react: '>=18.0.0'
+      use-sync-external-store: '>=1.2.0'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      immer:
+        optional: true
+      react:
+        optional: true
+      use-sync-external-store:
+        optional: true
+
 snapshots:
 
   '@adobe/css-tools@4.5.0': {}
@@ -3812,6 +3861,39 @@ snapshots:
     optionalDependencies:
       '@noble/hashes': 2.0.1
 
+  '@getalby/bitcoin-connect-react@3.12.3(@types/react@19.2.17)(react@19.2.7)(typescript@5.9.3)':
+    dependencies:
+      '@getalby/bitcoin-connect': 3.12.3(@types/react@19.2.17)(react@19.2.7)(typescript@5.9.3)
+      react: 19.2.7
+    transitivePeerDependencies:
+      - '@types/react'
+      - immer
+      - typescript
+      - use-sync-external-store
+
+  '@getalby/bitcoin-connect@3.12.3(@types/react@19.2.17)(react@19.2.7)(typescript@5.9.3)':
+    dependencies:
+      '@getalby/lightning-tools': 8.2.0
+      '@getalby/sdk': 8.0.3(typescript@5.9.3)
+      '@lightninglabs/lnc-web': 0.3.6-alpha
+      qrcode-generator: 1.4.4
+      zustand: 5.0.14(@types/react@19.2.17)(react@19.2.7)
+    transitivePeerDependencies:
+      - '@types/react'
+      - immer
+      - react
+      - typescript
+      - use-sync-external-store
+
+  '@getalby/lightning-tools@8.2.0': {}
+
+  '@getalby/sdk@8.0.3(typescript@5.9.3)':
+    dependencies:
+      '@getalby/lightning-tools': 8.2.0
+      nostr-tools: 2.23.9(typescript@5.9.3)
+    transitivePeerDependencies:
+      - typescript
+
   '@humanfs/core@0.19.2':
     dependencies:
       '@humanfs/types': 0.15.0
@@ -3943,6 +4025,13 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@lightninglabs/lnc-core@0.3.6-alpha': {}
+
+  '@lightninglabs/lnc-web@0.3.6-alpha':
+    dependencies:
+      '@lightninglabs/lnc-core': 0.3.6-alpha
+      crypto-js: 4.2.0
 
   '@napi-rs/wasm-runtime@1.1.6(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
     dependencies:
@@ -4621,6 +4710,8 @@ snapshots:
       path-key: 3.1.1
       shebang-command: 2.0.0
       which: 2.0.2
+
+  crypto-js@4.2.0: {}
 
   css-tree@3.2.1:
     dependencies:
@@ -5829,6 +5920,8 @@ snapshots:
 
   pure-rand@8.4.2: {}
 
+  qrcode-generator@1.4.4: {}
+
   qrcode@1.5.4:
     dependencies:
       dijkstrajs: 1.0.3
@@ -6446,3 +6539,8 @@ snapshots:
       zod: 4.4.3
 
   zod@4.4.3: {}
+
+  zustand@5.0.14(@types/react@19.2.17)(react@19.2.7):
+    optionalDependencies:
+      '@types/react': 19.2.17
+      react: 19.2.7

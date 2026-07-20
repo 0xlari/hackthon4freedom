@@ -1,8 +1,9 @@
 import { createHmac, randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 
-import type { AppDatabase } from "@/db/client";
+import * as schema from "@/db/schema";
 import { protocolNwcAuthorizations } from "@/db/schema";
 import { encryptNwcSecret } from "@/integrations/nwc/secret-crypto";
 import type { NwcGateway } from "@/integrations/nwc/types";
@@ -16,7 +17,9 @@ function publicFingerprint(privateFingerprint: string) {
     .digest("hex");
 }
 
-export async function prepareProtocolNwcAuthorization(db: AppDatabase, gateway: NwcGateway, input: {
+type Database<THKT extends PgQueryResultHKT> = PgDatabase<THKT, typeof schema>;
+
+export async function prepareProtocolNwcAuthorization<THKT extends PgQueryResultHKT>(db: Database<THKT>, gateway: NwcGateway, input: {
   receivableEventId: string;
   clientPubkey: string;
   nwcUri: string;
@@ -49,7 +52,7 @@ export async function prepareProtocolNwcAuthorization(db: AppDatabase, gateway: 
     lastValidatedAt: stored.lastValidatedAt, executorPubkey: input.clientPubkey };
 }
 
-export async function recordProtocolNwcAttestation(db: AppDatabase, input: {
+export async function recordProtocolNwcAttestation<THKT extends PgQueryResultHKT>(db: Database<THKT>, input: {
   receivableEventId: string; clientPubkey: string; attestationEventId: string;
 }) {
   const [updated] = await db.update(protocolNwcAuthorizations).set({ attestationEventId: input.attestationEventId, updatedAt: new Date() })
