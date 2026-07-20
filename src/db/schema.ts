@@ -764,6 +764,37 @@ export const nwcConnections = pgTable(
   ],
 );
 
+// Private operational storage for the Nostr-native v0.1 originator. Public
+// protocol state is reconstructed from relays and never from this table.
+export const protocolNwcAuthorizations = pgTable(
+  "protocol_nwc_authorizations",
+  {
+    id: text("id").primaryKey(),
+    receivableEventId: text("receivable_event_id").notNull(),
+    clientPubkey: text("client_pubkey").notNull(),
+    walletServicePubkey: text("wallet_service_pubkey").notNull(),
+    encryptedConnectionUri: text("encrypted_connection_uri").notNull(),
+    safeFingerprint: text("safe_fingerprint").notNull(),
+    maxAmountMsat: bigint("max_amount_msat", { mode: "bigint" }).notNull(),
+    dueAt: timestamp("due_at", { mode: "date", withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { mode: "date", withTimezone: true }).notNull(),
+    lastValidatedAt: timestamp("last_validated_at", { mode: "date", withTimezone: true }).notNull(),
+    attestationEventId: text("attestation_event_id"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("protocol_nwc_authorizations_receivable_client_unique").on(table.receivableEventId, table.clientPubkey),
+    uniqueIndex("protocol_nwc_authorizations_attestation_unique").on(table.attestationEventId),
+    check("protocol_nwc_authorizations_receivable_shape", sql`${table.receivableEventId} ~ '^[a-f0-9]{64}$'`),
+    check("protocol_nwc_authorizations_client_shape", sql`${table.clientPubkey} ~ '^[a-f0-9]{64}$'`),
+    check("protocol_nwc_authorizations_wallet_shape", sql`${table.walletServicePubkey} ~ '^[a-f0-9]{64}$'`),
+    check("protocol_nwc_authorizations_fingerprint_shape", sql`${table.safeFingerprint} ~ '^[a-f0-9]{64}$'`),
+    check("protocol_nwc_authorizations_amount_positive", sql`${table.maxAmountMsat} > 0`),
+    check("protocol_nwc_authorizations_expiry", sql`${table.expiresAt} > ${table.dueAt}`),
+  ],
+);
+
 export const scheduledPaymentAttempts = pgTable(
   "scheduled_payment_attempts",
   {

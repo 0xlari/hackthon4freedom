@@ -134,6 +134,13 @@
       "when": 1784383200000,
       "tag": "0018_nwc_payer_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1784476800000,
+      "tag": "0019_protocol_nwc_private",
+      "breakpoints": true
     }
   ]
 }
