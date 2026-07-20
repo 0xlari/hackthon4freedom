@@ -4,3 +4,6 @@ export * from "./canonical-json";
 export * from "./schemas";
 export * from "./builders";
 export * from "./validators";
+export * from "./authorities";
+export * from "./references";
+export * from "./reducers";
