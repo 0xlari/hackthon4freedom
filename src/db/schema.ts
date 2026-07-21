@@ -888,6 +888,41 @@ export const lrpReceivableOriginations = pgTable(
   ],
 );
 
+// Private preparation and publication state for originator-signed facts. The
+// private hash commits to PostgreSQL data; only the signed LRP event is public.
+export const lrpOriginatorEvents = pgTable(
+  "lrp_originator_events",
+  {
+    id: text("id").primaryKey(),
+    receivableId: text("receivable_id").notNull()
+      .references(() => receivables.id, { onDelete: "restrict" }),
+    eventType: text("event_type").notNull(),
+    mode: text("mode").notNull(),
+    status: text("status").notNull().default("PRIVATE_RECORDED"),
+    originatorPubkey: text("originator_pubkey"),
+    privateRecordId: text("private_record_id").notNull(),
+    privatePayloadHash: text("private_payload_hash").notNull(),
+    candidateEvent: jsonb("candidate_event"),
+    signedEvent: jsonb("signed_event"),
+    publicEventId: text("public_event_id").unique()
+      .references(() => lrpPublicEvents.eventId, { onDelete: "restrict" }),
+    divergences: jsonb("divergences").notNull().default([]),
+    canonicalSource: lrpCanonicalSource("canonical_source").notNull().default("LEGACY"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("lrp_originator_events_receivable_type_unique").on(table.receivableId, table.eventType),
+    index("lrp_originator_events_status_idx").on(table.eventType, table.status),
+    check("lrp_originator_events_type", sql`${table.eventType} in ('PayerCommitmentProof', 'ClientValidationDecision', 'NwcAuthorizationAttestation')`),
+    check("lrp_originator_events_mode", sql`${table.mode} in ('SHADOW', 'LRP')`),
+    check("lrp_originator_events_status", sql`${table.status} in ('PRIVATE_RECORDED', 'CANDIDATE_READY', 'SHADOW_VALIDATED', 'PUBLICATION_PENDING', 'PUBLISHED', 'PROJECTION_PENDING')`),
+    check("lrp_originator_events_pubkey_shape", sql`${table.originatorPubkey} is null or ${table.originatorPubkey} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_originator_events_private_hash_shape", sql`${table.privatePayloadHash} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_originator_events_public_event_shape", sql`${table.publicEventId} is null or ${table.publicEventId} ~ '^[a-f0-9]{64}$'`),
+  ],
+);
+
 export const lrpEntityLinks = pgTable(
   "lrp_entity_links",
   {

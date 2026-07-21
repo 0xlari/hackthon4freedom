@@ -155,6 +155,13 @@
       "when": 1784736000000,
       "tag": "0021_lrp_receivable_originations",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1784822400000,
+      "tag": "0022_lrp_originator_events",
+      "breakpoints": true
     }
   ]
 }
