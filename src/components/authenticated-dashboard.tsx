@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { BadgeCheck, Bitcoin, BriefcaseBusiness, FilePlus2, Fingerprint, FlaskConical, Link2, Radio, ShieldCheck, Users } from "lucide-react";
 
 import { ButtonLink } from "@/components/button-link";
+import { LrpPoolCreation } from "@/components/lrp-pool-creation";
+import type { LrpOriginationMode } from "@/config/lrp-mode";
 import { DEMO_CHANGED_EVENT, getDemoState, type DemoContribution, type DemoReceivable } from "@/lib/demo-store";
 
 type AccessState = "checking" | "authenticated" | "anonymous";
@@ -17,7 +19,7 @@ const missions = [
   { icon: Bitcoin, title: "Adicionar garantia em BTC", detail: "Cada US$ 1 elegível pode sustentar até US$ 2 de limite." },
 ];
 
-export function AuthenticatedDashboard() {
+export function AuthenticatedDashboard({ lrpMode = "LEGACY" }: { lrpMode?: LrpOriginationMode }) {
   const [access, setAccess] = useState<AccessState>("checking");
   const [profile, setProfile] = useState<{ id: string; label: string }>();
   const [receivables, setReceivables] = useState<DemoReceivable[]>([]);
@@ -95,6 +97,8 @@ export function AuthenticatedDashboard() {
           <ButtonLink href="/pools" variant="secondary">Explorar pools</ButtonLink>
         </article>
       </section>
+
+      {lrpMode !== "LEGACY" ? <LrpPoolCreation mode={lrpMode} /> : null}
 
       <section className="profile-history" aria-label="Seu histórico na plataforma">
         <article>

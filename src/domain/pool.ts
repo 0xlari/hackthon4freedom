@@ -1,6 +1,13 @@
 import { DomainError } from "./errors";
 
 export const POOL_FINANCIAL_RULES_VERSION = "pool-financial-v0.2";
+
+export function calculateExpectedContributorReturnBps(discountBps: number) {
+  if (!Number.isInteger(discountBps) || discountBps < 0 || discountBps > 500) {
+    throw new DomainError("Desconto inválido para estimar retorno.", "INVALID_DISCOUNT");
+  }
+  return Math.floor((discountBps * 7_000) / (10_000 - discountBps));
+}
 export const MAX_DISCOUNT_BPS = 500;
 
 export type RiskBand = "LOW" | "MEDIUM" | "HIGH";

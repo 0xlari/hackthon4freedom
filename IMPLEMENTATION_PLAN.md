@@ -372,11 +372,9 @@ A criação real do recebível foi migrada de forma controlada:
 
 Continuam no fluxo legado:
 
-- confirmação do pagador em `/confirmar`;
-- decisão administrativa ou do originador em `/administracao`;
-- atestado NWC;
-- criação da pool e leitura pública em `/pools`;
-- leituras agregadas em `/painel`.
+- leitura pública das pools em `/pools` e `/pools/[id]`;
+- aportes e demais eventos financeiros;
+- a leitura agregada do histórico do painel, além da revisão da pool originada.
 
 Não considerar concluída a migração apenas porque a criação do recebível e a infraestrutura técnica já usam o LRP.
 
@@ -393,12 +391,12 @@ Migrar, em commits independentes, a primeira vertical slice real da plataforma p
 Migrar, no fluxo real da plataforma:
 
 1. criação pública do recebível — concluída no commit `b471503`;
-2. prova pública da confirmação privada — pendente;
-3. decisão do cliente originador — pendente;
-4. atestado público NWC — pendente;
-5. assinatura e publicação da pool — pendente;
+2. prova pública da confirmação privada — concluída;
+3. decisão do cliente originador — concluída;
+4. atestado público `NwcAuthorizationAttestation` — concluído;
+5. assinatura e publicação da pool — concluída;
 6. leitura da página pública da pool pelo reducer LRP — pendente;
-7. projeção reconstruível no banco — infraestrutura concluída para o recebível e pendente para os demais estados.
+7. projeção reconstruível no banco — concluída para recebíveis e pools originadas.
 
 ### Fora do primeiro corte
 

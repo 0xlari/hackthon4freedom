@@ -18,6 +18,7 @@ import {
   clientConfirmations,
   lrpOriginatorEvents,
   lrpReceivableOriginations,
+  payerPaymentAuthorizations,
 } from "@/db/schema";
 import { publishPreparedOriginatorEvent } from "@/services/lrp-originator-event-publication-service";
 
@@ -78,6 +79,10 @@ export async function preparePayerCommitmentProof<THKT extends PgQueryResultHKT>
     )).limit(1);
   if (!state) throw new Error("LRP_ACCEPTED_CONFIRMATION_NOT_FOUND");
   if (state.origin.mode !== input.mode) throw new Error("LRP_MODE_MISMATCH");
+  const [authorization] = await db.select().from(payerPaymentAuthorizations)
+    .where(eq(payerPaymentAuthorizations.receivableId, input.receivableId)).limit(1);
+  const hasNwcAuthorization = authorization?.method === "NWC_AUTOMATIC" && authorization.status === "ACTIVE" &&
+    !authorization.revokedAt && authorization.expiresAt > input.now;
 
   const privatePayloadHash = hashPrivateConfirmation(state.confirmation);
   const [existing] = await db.select().from(lrpOriginatorEvents).where(and(
@@ -126,7 +131,7 @@ export async function preparePayerCommitmentProof<THKT extends PgQueryResultHKT>
     confirmed_at: Math.floor(state.confirmation.usedAt!.getTime() / 1000),
     terms_version: state.confirmation.termsVersion!,
     accepts_bitcoin: true,
-    has_nwc_authorization: false,
+    has_nwc_authorization: hasNwcAuthorization,
     originator_pubkey: originatorPubkey,
   });
   protocolUnsignedEventSchema.parse(candidate);

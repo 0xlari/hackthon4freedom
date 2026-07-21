@@ -1,5 +1,13 @@
 # Registro de decisões
 
+## ADR-040 — criação de pool assinada pela prestadora no LRP
+
+- **Data:** 2026-07-21
+- **Status:** implementada atrás dos modos `LEGACY`, `SHADOW` e `LRP`
+- **Decisão:** `PoolCreated` somente é preparado após `ReceivableCreated`, `PayerCommitmentProof`, `ClientValidationDecision = APPROVED` e `NwcAuthorizationAttestation = ACTIVE`. O identificador canônico do atestado é `NwcAuthorizationAttestation`. Os termos são calculados pelo domínio financeiro, exibidos integralmente e vinculados a consentimento explícito antes da assinatura pela mesma pubkey de `ReceivableCreated`.
+- **Persistência:** a preparação privada e o hash dos termos ficam em `lrp_pool_originations`; em `LRP`, a pool privada só é aberta depois do quórum 2/3 e do vínculo imutável com o event ID. Em `SHADOW`, o legado continua canônico e o candidato não é publicado.
+- **Consequências:** retry reutiliza o mesmo evento assinado; alteração posterior dos termos, perda da autorização NWC, autoria divergente e segunda pool para o mesmo recebível são bloqueadas. Leitura de `/pools`, aportes, DLC, pagamentos reais e mainnet permanecem fora deste corte.
+
 ## ADR-039 — sessão e perfil separados por carteira
 
 - **Data:** 2026-07-19

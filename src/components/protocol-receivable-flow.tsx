@@ -3,8 +3,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 
-import { buildPoolCreated, buildReceivableCreated } from "@protocol/builders";
-import type { PoolCreated, ProtocolSignedEvent, ReceivableCreated } from "@protocol/schemas";
+import { buildReceivableCreated } from "@protocol/builders";
+import type { ProtocolSignedEvent, ReceivableCreated } from "@protocol/schemas";
 import { LRP_EVENT_VERSION } from "@protocol/version";
 import { Nip07Signer, type Nip07Window } from "@nostr/signer";
 
@@ -23,7 +23,7 @@ function usdMinor(value: string) {
 export function ProtocolReceivableFlow({ initialReceivableEventId }: { initialReceivableEventId?: string } = {}) {
   const [session, setSession] = useState<Session>(); const [signer, setSigner] = useState<Nip07Signer>(); const [pubkey, setPubkey] = useState("");
   const [status, setStatus] = useState(""); const [published, setPublished] = useState<Published>(); const [evidenceFile, setEvidenceFile] = useState<File>();
-  const [graph, setGraph] = useState<ProtocolSignedEvent[]>([]); const [poolPublished, setPoolPublished] = useState<Published>();
+  const [, setGraph] = useState<ProtocolSignedEvent[]>([]);
   useEffect(() => { fetch("/api/auth/session", { cache: "no-store" }).then((response) => response.json()).then(setSession).catch(() => setSession({ authenticated: false })); }, []);
   useEffect(() => { if (!initialReceivableEventId || !/^[a-f0-9]{64}$/.test(initialReceivableEventId)) return; void (async () => {
     try { const [rootResponse, relatedResponse] = await Promise.all([fetch(`/api/protocol/events?event=${initialReceivableEventId}`), fetch(`/api/protocol/events?ref=${initialReceivableEventId}`)]); const root = await rootResponse.json(); const related = await relatedResponse.json(); const events = [...(root.events ?? []), ...(related.events ?? [])] as ProtocolSignedEvent[]; setGraph([...new Map(events.map((item) => [item.id, item])).values()]); setPublished({ id: initialReceivableEventId, acknowledgedRelays: root.observedOn?.[initialReceivableEventId] ?? [] }); setStatus("Eventos do recebível carregados dos relays."); } catch { setStatus("Não foi possível consultar a análise nos relays."); }
@@ -54,20 +54,6 @@ export function ProtocolReceivableFlow({ initialReceivableEventId }: { initialRe
     } catch (error) { setStatus(error instanceof Error ? error.message : "Não foi possível publicar o recebível."); }
   }
 
-  async function createPool(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!signer || !pubkey || !published) return setStatus("Conecte o signer da prestadora.");
-    try {
-      const root = graph.find((item) => item.id === published.id); const rootContent = root ? JSON.parse(root.content) as ReceivableCreated : undefined;
-      if (!root || !rootContent || root.pubkey !== pubkey) throw new Error("A pool deve ser assinada pela mesma prestadora do recebível.");
-      const parsed = graph.map((item) => ({ event: item, content: JSON.parse(item.content) as { event_type: string; decision?: string; authorization_state?: string; client_pubkey?: string; executor_pubkey?: string } }));
-      const commitment = parsed.find((item) => item.content.event_type === "PayerCommitmentProof"); const approval = parsed.find((item) => item.content.event_type === "ClientValidationDecision" && item.content.decision === "APPROVED"); const nwc = parsed.find((item) => item.content.event_type === "NwcAuthorizationAttestation" && item.content.authorization_state === "ACTIVE");
-      if (!commitment || !approval || !nwc || approval.event.pubkey !== nwc.event.pubkey) throw new Error("Aprovação e atestado NWC válidos ainda não foram encontrados.");
-      const data = new FormData(event.currentTarget); const now = Math.floor(Date.now() / 1000); const fundingDeadline = Math.floor(new Date(`${String(data.get("fundingDeadline"))}T12:00:00Z`).getTime() / 1000);
-      const content: PoolCreated = { protocol_version: LRP_EVENT_VERSION, event_type: "PoolCreated", pool_id: crypto.randomUUID(), title: rootContent.title, provider_pseudonym: rootContent.provider_pseudonym, public_reputation_facts: [], receivable_event_id: root.id, payer_commitment_event_id: commitment.event.id, approval_event_id: approval.event.id, nwc_attestation_event_id: nwc.event.id, originator_pubkey: approval.event.pubkey, original_currency: rootContent.original_currency, target_sats: String(data.get("targetSats")), minimum_partial_bps: 5000, funding_deadline: fundingDeadline, due_at: rootContent.due_at, discount_bps: Number(data.get("discountBps")), expected_return_bps: Number(data.get("returnBps")), client_fees_sats: String(data.get("clientFeesSats")), fixed_late_fee_bps: 200, daily_late_interest_bps: 10, maximum_penalty_bps: 1000, partial_funding_policy: "PROVIDER_DECIDES_AT_OR_ABOVE_MINIMUM", partial_acceptance_window_seconds: 86400, cancellation_policy: "REFUND_BEFORE_DISBURSEMENT", dispute_policy: "ORIGINATOR_COORDINATED_V0_1", originator_concentrates_operational_roles: true, terms_accepted_at: now };
-      setStatus("Assinando a pool e aguardando dois ACKs de três relays…"); const signed = await signer.signEvent(buildPoolCreated(content)); const response = await fetch("/api/protocol/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(signed) }); const body = await response.json(); if (!response.ok) throw new Error(body.error ?? "Pool rejeitada pelos validadores."); setPoolPublished({ id: signed.id, acknowledgedRelays: body.acknowledgedRelays }); setStatus("Pool pública confirmada por pelo menos dois relays.");
-    } catch (error) { setStatus(error instanceof Error ? error.message : "Não foi possível publicar a pool."); }
-  }
-
   if (!session) return <p role="status">Verificando sua sessão…</p>;
   if (!session.authenticated) return <div className="demo-callout"><strong>Entre com sua carteira Lightning antes de vincular o signer Nostr.</strong><Link className="button button--primary" href="/entrar?next=/protocolo">Entrar</Link></div>;
   return <div className="receivable-demo-form">
@@ -81,7 +67,6 @@ export function ProtocolReceivableFlow({ initialReceivableEventId }: { initialRe
       <label>Vencimento<input name="dueDate" type="date" required /></label><label>Evidência privada<input name="evidence" type="file" accept=".pdf,.png,.jpg,.jpeg" required onChange={(event) => setEvidenceFile(event.target.files?.[0])} /></label>
     </div><button className="button button--primary" disabled={!signer}>Assinar e publicar recebível</button></form>
     <p role="status">{status}</p>{published ? <section className="demo-success"><h2>Recebível publicado</h2><p>ACKs: {published.acknowledgedRelays.join(", ") || "consultando"}</p><Link className="button button--secondary" href={`/protocolo/originar?receivable=${published.id}`}>Abrir link do cliente originador</Link></section> : null}
-    {published && graph.some((item) => JSON.parse(item.content).event_type === "ClientValidationDecision") ? <form onSubmit={createPool}><h2>3. Revisar e assinar a pool BTC</h2><p>Os termos são imutáveis depois do primeiro aporte. NWC é obrigatório e foi verificado nos relays.</p><div className="form-grid"><label>Meta em sats<input name="targetSats" pattern="[0-9]+" defaultValue="100000" required /></label><label>Prazo do financiamento<input name="fundingDeadline" type="date" required /></label><label>Desconto (bps)<input name="discountBps" type="number" min="0" max="500" defaultValue="500" required /></label><label>Retorno (bps)<input name="returnBps" type="number" min="0" max="10000" defaultValue="350" required /></label><label>Taxas do cliente (sats)<input name="clientFeesSats" pattern="[0-9]+" defaultValue="0" required /></label></div><button className="button button--primary" disabled={!signer}>Assinar e publicar PoolCreated</button></form> : null}
-    {poolPublished ? <section className="demo-success"><h2>Pool publicada</h2><p>ACKs: {poolPublished.acknowledgedRelays.join(", ")}</p><Link className="button button--primary" href={`/protocolo/pools/${poolPublished.id}`}>Abrir página pública verificável</Link></section> : null}
+    {published ? <p>A criação da pool usa agora os termos calculados no fluxo real do painel.</p> : null}
   </div>;
 }

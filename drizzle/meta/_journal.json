@@ -169,6 +169,13 @@
       "when": 1784908800000,
       "tag": "0023_encrypt_lrp_nwc_relays",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1784995200000,
+      "tag": "0024_lrp_pool_originations",
+      "breakpoints": true
     }
   ]
 }

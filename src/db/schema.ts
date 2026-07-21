@@ -924,6 +924,42 @@ export const lrpOriginatorEvents = pgTable(
   ],
 );
 
+// Private preparation state for a provider-approved PoolCreated event. Financial
+// terms remain private until the provider explicitly accepts the public payload.
+export const lrpPoolOriginations = pgTable(
+  "lrp_pool_originations",
+  {
+    id: text("id").primaryKey(),
+    receivableId: text("receivable_id").notNull().unique()
+      .references(() => receivables.id, { onDelete: "restrict" }),
+    poolId: text("pool_id").notNull().unique(),
+    requesterId: text("requester_id").notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    mode: text("mode").notNull(),
+    status: text("status").notNull().default("TERMS_READY"),
+    providerPubkey: text("provider_pubkey"),
+    termsPayload: jsonb("terms_payload").notNull(),
+    termsHash: text("terms_hash").notNull(),
+    consentedAt: timestamp("consented_at", { mode: "date", withTimezone: true }),
+    candidateEvent: jsonb("candidate_event"),
+    signedEvent: jsonb("signed_event"),
+    publicEventId: text("public_event_id").unique()
+      .references(() => lrpPublicEvents.eventId, { onDelete: "restrict" }),
+    divergences: jsonb("divergences").notNull().default([]),
+    canonicalSource: lrpCanonicalSource("canonical_source").notNull().default("LEGACY"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    index("lrp_pool_originations_requester_idx").on(table.requesterId, table.status),
+    check("lrp_pool_originations_mode", sql`${table.mode} in ('SHADOW', 'LRP')`),
+    check("lrp_pool_originations_status", sql`${table.status} in ('TERMS_READY', 'CANDIDATE_READY', 'SHADOW_VALIDATED', 'PUBLICATION_PENDING', 'PUBLISHED', 'PROJECTION_PENDING')`),
+    check("lrp_pool_originations_pubkey_shape", sql`${table.providerPubkey} is null or ${table.providerPubkey} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_pool_originations_terms_hash_shape", sql`${table.termsHash} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_pool_originations_event_shape", sql`${table.publicEventId} is null or ${table.publicEventId} ~ '^[a-f0-9]{64}$'`),
+  ],
+);
+
 export const lrpEntityLinks = pgTable(
   "lrp_entity_links",
   {
