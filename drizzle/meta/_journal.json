@@ -148,6 +148,13 @@
       "when": 1784649600000,
       "tag": "0020_lrp_projection_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784736000000,
+      "tag": "0021_lrp_receivable_originations",
+      "breakpoints": true
     }
   ]
 }

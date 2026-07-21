@@ -854,6 +854,40 @@ export const lrpPublicationAttempts = pgTable(
   ],
 );
 
+// Private preparation state for the real receivable creation flow. Only the
+// signed event and its derived projection become public LRP state.
+export const lrpReceivableOriginations = pgTable(
+  "lrp_receivable_originations",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull().unique(),
+    receivableId: text("receivable_id").notNull().unique()
+      .references(() => receivables.id, { onDelete: "restrict" }),
+    requesterId: text("requester_id").notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    mode: text("mode").notNull(),
+    status: text("status").notNull().default("PRIVATE_DRAFT"),
+    providerPubkey: text("provider_pubkey"),
+    publicPseudonym: text("public_pseudonym").notNull(),
+    privatePayload: jsonb("private_payload").notNull(),
+    candidateEvent: jsonb("candidate_event"),
+    signedEvent: jsonb("signed_event"),
+    publicEventId: text("public_event_id").unique()
+      .references(() => lrpPublicEvents.eventId, { onDelete: "restrict" }),
+    divergences: jsonb("divergences").notNull().default([]),
+    canonicalSource: lrpCanonicalSource("canonical_source").notNull().default("LEGACY"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    index("lrp_receivable_originations_requester_idx").on(table.requesterId, table.status),
+    check("lrp_receivable_originations_mode", sql`${table.mode} in ('SHADOW', 'LRP')`),
+    check("lrp_receivable_originations_status", sql`${table.status} in ('PRIVATE_DRAFT', 'CANDIDATE_READY', 'SHADOW_VALIDATED', 'PUBLICATION_PENDING', 'PUBLISHED', 'PROJECTION_PENDING')`),
+    check("lrp_receivable_originations_pubkey_shape", sql`${table.providerPubkey} is null or ${table.providerPubkey} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_receivable_originations_event_shape", sql`${table.publicEventId} is null or ${table.publicEventId} ~ '^[a-f0-9]{64}$'`),
+  ],
+);
+
 export const lrpEntityLinks = pgTable(
   "lrp_entity_links",
   {
