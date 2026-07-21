@@ -105,12 +105,15 @@ export async function completeLrpPublication<THKT extends PgQueryResultHKT>(
     now: Date;
   },
 ) {
+  const [existing] = await db.select().from(lrpPublicationAttempts)
+    .where(eq(lrpPublicationAttempts.idempotencyKey, input.idempotencyKey)).limit(1);
+  if (!existing) throw new Error("LRP_PUBLICATION_NOT_FOUND");
   const [updated] = await db.update(lrpPublicationAttempts).set({
     status: input.status,
     attemptCount: sql`${lrpPublicationAttempts.attemptCount} + ${input.attemptsAdded}`,
-    acknowledgedRelays: normalizedRelays(input.acknowledgedRelays),
-    rejectedRelays: normalizedRelays(input.rejectedRelays),
-    timedOutRelays: normalizedRelays(input.timedOutRelays),
+    acknowledgedRelays: normalizedRelays([...((existing.acknowledgedRelays as string[]) ?? []), ...input.acknowledgedRelays]),
+    rejectedRelays: normalizedRelays([...((existing.rejectedRelays as string[]) ?? []), ...input.rejectedRelays]),
+    timedOutRelays: normalizedRelays([...((existing.timedOutRelays as string[]) ?? []), ...input.timedOutRelays]),
     lastErrorCode: input.errorCode ?? null,
     updatedAt: input.now,
   }).where(eq(lrpPublicationAttempts.idempotencyKey, input.idempotencyKey)).returning();

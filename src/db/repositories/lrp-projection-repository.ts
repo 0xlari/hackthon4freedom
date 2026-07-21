@@ -64,3 +64,18 @@ export async function clearLrpProjections<THKT extends PgQueryResultHKT>(db: Dat
     await tx.delete(lrpReceivableProjections);
   });
 }
+
+export async function recordLrpProjectionFailure<THKT extends PgQueryResultHKT>(
+  db: Database<THKT>,
+  input: { eventCount: number; inconsistencies: readonly unknown[]; startedAt: Date; finishedAt: Date },
+) {
+  const [failed] = await db.insert(lrpProjectionRuns).values({
+    id: randomUUID(),
+    status: "FAILED",
+    eventCount: input.eventCount,
+    inconsistencies: input.inconsistencies,
+    startedAt: input.startedAt,
+    finishedAt: input.finishedAt,
+  }).returning();
+  return failed!;
+}
