@@ -1,125 +1,512 @@
-# Plano de implementação — fonte de verdade
+# Plano de implementação — LRP + Elas Recebem Hoje
 
-## Estado atual
+## 1. Estado atual
 
-- [x] Repositório inspecionado: vazio, sem commits ou aplicação.
-- [x] Descoberta de produto consolidada.
-- [x] Documentação inicial criada.
-- [x] Revisão/aprovação da fundadora.
-- [x] Mensagem exata `APROVADO PARA IMPLEMENTAR` recebida.
-- [x] Implementação iniciada pela Etapa 0 documental.
+Este repositório contém, no mesmo monorepo:
 
-## Objetivo
+1. o **Lightning Receivables Protocol — LRP v0.1**;
+2. a plataforma **Elas Recebem Hoje**, primeira implementação de referência do protocolo;
+3. componentes operacionais do cliente originador usados no MVP do hackathon.
 
-Entregar um MVP demonstrável de antecipação de recebível, com validação da plataforma, pools exclusivamente BTC, aporte não custodial por DLC, distribuição Lightning controlada, ledger correto e reputação Nostr sem dados sensíveis.
+Identificador técnico do protocolo: `lrp`
+Versão dos eventos: `lrp/0.1.0`
 
-## Etapas
+A fundação experimental e o primeiro corte controlado do LRP foram implementados nos commits:
 
-- [x] 0. Confirmar decisões, stack, país, limites e guardrails.
-- [x] 1. Criar fundação e design system.
-- [x] 2. Implementar domínio, banco e ledger.
-- [x] 3. Implementar identidade, limite e reputação interna.
-- [x] 4. Implementar recebível, cliente e validação.
-- [x] 5. Implementar pools e simulador financeiro.
-- [ ] 6. Integrar Breez SDK Liquid e Lightning diretamente em mainnet, bloqueada por flag e tetos.
-- [x] 7. Integrar Nostr.
-- [x] 8. Auditar USDt Liquid e preparar mainnet controlada — resultado operacional `NO_GO`.
-- [ ] 9. Auditar, habilitar aporte mainnet mínimo e ensaiar demo.
-- [x] 10. Cancelar a integração com Fedi; o MVP utilizará o LRP exclusivamente no Elas Recebem Hoje.
-- [x] 11. Simplificar a experiência em painel único, remover páginas redundantes, adotar BTC-only e preparar compartilhamento por WhatsApp.
-- [ ] 12. Implementar carteira contratual autocustodial, DLC, oráculo e reembolso antes de qualquer aporte relevante.
+- `2891d53 feat: add experimental LRP v0.1 protocol foundation`
+- `5f83ae6 fix: align LRP commitment terms version`
+- `12b61f6 feat: add guarded LRP origination modes`
+- `cf3ecb5 fix: enforce LRP authority quorum and stable retries`
+- `5a6e8dd feat: add reconstructible LRP projection storage`
+- `7653d0c feat: add idempotent LRP projection service`
+- `b471503 feat: migrate receivable creation to LRP`
 
-Detalhes e critérios estão em `docs/09-plano-de-implementacao.md`.
-A antiga proposta de integração com Fedi foi retirada do escopo. Páginas públicas e compartilhamento continuam pertencendo ao próprio Elas Recebem Hoje, sem dependência ou canal específico no Fedi.
+As validações desse corte encerraram normalmente, sem falhas de testes, TypeScript, build ou E2E. Nenhuma movimentação financeira real foi habilitada.
 
-## Dependências resolvidas na Etapa 0
+### Situação arquitetural
 
-- Stack inicial confirmada.
-- Tetos monetários definidos; carteira e responsável serão exigidos somente antes da Etapa 9.
-- Fonte/limite demonstrativo da reserva definidos.
-- Fórmula demonstrativa do limite progressivo definida.
-- Piloto Brasil/cliente exterior/USD de referência, aceite obrigatório do cliente e liquidação somente em BTC definidos.
-- USDt na Liquid é a única stablecoin escolhida; o gateway mainnet foi autorizado na Etapa 6, enquanto aumento de limites e abertura operacional permanecem responsabilidade da Etapa 8.
+- O LRP já possui schemas, builders, validators, reducers, matriz de autoridades, adapters de signer, publicação em múltiplos relays e cache reconstruível.
+- A criação do recebível já suporta os modos `LEGACY`, `SHADOW` e `LRP`; `LEGACY` continua sendo o padrão.
+- A confirmação do pagador, a decisão do originador, o atestado NWC e a criação e leitura das pools ainda permanecem no fluxo anterior.
+- A migração do produto real para usar o LRP como fonte canônica de todos os estados públicos ainda não foi concluída.
+- PostgreSQL continua autorizado para dados privados, operação, scheduler, auditoria e projeções reconstruíveis.
+- Mainnet, DLC real, cobrança automática real e distribuição financeira real continuam desabilitados.
 
-## Validações obrigatórias
+---
 
-- [x] Threat model documental revisado em `docs/07-seguranca-privacidade-e-riscos.md` e nos table-tops de `docs/14-guardrails-operacionais.md`.
-- [x] Ledger balanceado e testado por propriedades.
-- [ ] Backup/restauração exercitados.
-- [x] Payload Nostr revisado manualmente.
-- [x] Nenhum segredo ou PII no repositório; varredura local não encontrou chave privada, `nsec`, mnemonic ou API key preenchida.
-- [x] Plano alternativo da demo ensaiado localmente, sem rede ou fundos, na rota `/demo`.
-- [ ] Avaliação jurídica antes de operação pública.
+## 2. Objetivo do hackathon
 
-## Decisões futuras que não bloqueiam a Etapa 1
+Entregar um MVP demonstrável em que uma prestadora transforma um recebível internacional futuro em uma pool pública de financiamento em Bitcoin, com:
 
-1. Provedores comerciais e hospedagem.
-2. Países/moedas além do cenário USD com cliente fictício no exterior.
-3. Calibração das fórmulas com dados reais.
-4. Haircut e execução de garantias reais.
-5. Capitalização e termos jurídicos da cobertura pública.
-6. Liquidez, swaps, custódia e recuperação do USDt Liquid via Breez SDK permanecem auditáveis na Etapa 8, mesmo com o gateway mainnet introduzido na Etapa 6.
-7. Fonte e rebalanceamento real da tesouraria BTC da pool pareada.
-8. Termos de reembolso após swaps reais.
-9. Responsável e carteira mainnet da demo antes da Etapa 9.
+- identidade e assinatura Nostr;
+- confirmação privada do pagador;
+- análise do recebível pelo cliente originador segundo critérios próprios;
+- autorização NWC obrigatória para o pagamento no vencimento;
+- publicação da pool em múltiplos relays;
+- aportes projetados para serem não custodiais por DLC;
+- estados públicos reconstruíveis sem uma tabela central como fonte de verdade;
+- documentos e dados sensíveis mantidos fora do Nostr.
 
-## Progresso
+A prioridade do hackathon é um fluxo implementável, verificável e demonstrável. A descentralização máxima permanece como direção obrigatória de evolução, mas não deve impedir a entrega do MVP.
 
-Atualizar este arquivo ao concluir cada etapa, com links para testes, decisões e limitações. Não avançar com testes financeiros quebrados sem registrar bloqueio e impacto.
+---
 
-## Lightning Receivables Protocol (LRP) — LRP v0.1
+## 3. Princípios obrigatórios
 
-Identificador técnico: `lrp`. Versão dos eventos: `lrp/0.1.0`.
+### 3.1 Nostr como fonte de verdade pública
 
-Esta trilha substituirá incrementalmente a fonte canônica dos estados públicos, sem remover o fluxo atual antes de existir reconstrução verificável. Cada item deve ser um commit separado e nenhum item habilita mainnet ou dinheiro real.
+Os eventos assinados do LRP são a fonte canônica para:
 
-- [x] 1. Especificação, ADRs e catálogo central de kinds.
-- [x] 2. Schemas puros e vetores canônicos.
-- [x] 3. Adapters de signer NIP-07, NIP-46, aplicativo externo e fake de teste.
-- [x] 4. Publisher/subscriber com três relays e quórum de dois ACKs positivos.
-- [x] 5. Builders, validators e prevenção de PII/segredos.
-- [x] 6. Reducers, grafo de referências e matriz de autoridades.
-- [x] 7. Cache apagável e comando `lrp:rebuild-cache`.
-- [x] 8. Criação e assinatura de recebível.
-- [x] 9. Decisão do cliente e atestado NWC público, mantendo credencial cifrada.
-- [x] 10. Assinatura e publicação da pool.
-- [x] 11. Página pública reconstruída exclusivamente do grafo Nostr.
-- [x] 12. E2E desktop/mobile, reconstrução em outro navegador e documentação final.
+- manifestação pública do recebível;
+- prova pública do compromisso privado do pagador;
+- decisão do cliente originador;
+- atestado público da autorização NWC;
+- criação da pool;
+- transições públicas da pool;
+- futuros aportes comprovados, liquidação, reputação, divulgação e disputas.
 
-Fontes normativas: ADR-041, ADR-042 e `docs/protocol/`. Os critérios finais exigem pool confirmada por 2 de 3 relays, reconstrução sem tabela canônica, NWC privada, cache reproduzível e suíte completa verde.
+O banco pode indexar e projetar esses eventos, mas não pode criar ou alterar sozinho o estado público.
 
-### Próxima etapa — ainda não iniciada
+### 3.2 Dados privados sob responsabilidade de cada cliente
 
-Migrar gradualmente a plataforma existente para consumir o LRP como fonte de verdade dos estados públicos. Antes do primeiro corte, apresentar o plano exato de migração, consumidores afetados, compatibilidade, rollback e critérios de remoção das regras operacionais antigas. O fluxo atual permanece ativo até essa aprovação; esta etapa de nomenclatura não executa a migração.
+Não sobem para o Nostr:
 
-### Registro de 2026-07-14
+- contratos completos;
+- CPF e identificação civil;
+- documentos pessoais;
+- e-mail e telefone;
+- mensagens privadas;
+- invoice completa do recebível;
+- URI ou secret NWC;
+- `nsec`, seed ou mnemonic;
+- preimages;
+- segredos operacionais.
 
-Etapa 0 concluída e validada em `docs/14-guardrails-operacionais.md`.
+O protocolo pode publicar somente hashes, compromissos criptográficos e metadados mínimos necessários para verificar integridade e referências.
 
-Etapa 1 concluída com a fundação Next.js, identidade visual, componentes reutilizáveis e rotas estáticas `/`, `/como-funciona`, `/pools` e `/entrar`. Validações executadas: lint, tipos, testes unitários/de componentes, build de produção, inspeção no navegador e testes E2E em Chromium desktop e Pixel 7. Nenhuma operação financeira, autenticação, integração ou publicação foi habilitada nessa etapa.
+### 3.3 Sem IA para aprovação
 
-Etapa 2 concluída com domínio monetário baseado em inteiros, máquinas de estado, schema PostgreSQL/Drizzle, quatro migrations versionadas, repositórios transacionais de ledger e aporte, transactional outbox e constraints financeiras. O ledger fecha por ativo e fica imutável após publicação; referências externas e chaves idempotentes são únicas; pools não ultrapassam a meta nem aceitam dupla alocação; recebível sem aceite BTC não pode ser aprovado nem originar pool. Validações executadas: lint, tipos, 26 testes unitários/de propriedades/integração, migration do zero em PostgreSQL embarcado, build e 4 testes E2E. Nenhuma integração externa ou movimentação real foi habilitada nessa etapa.
+O LRP não define IA de validação.
 
-Etapa 3 concluída com regra de limite v0.1, evidências consentidas, consentimentos revogáveis, garantias restritas à simulação, fatos de reputação interna, histórico append-only e reserva/liberação transacional do limite. A nova rota `/limite` explica a composição e os bloqueios usando somente perfil fictício. Expiração e revogação podem reduzir o total sem apagar obrigações existentes; concorrência não permite consumo duplo. Validações executadas: lint, tipos, 41 testes unitários/de propriedades/integração, 18 testes PostgreSQL partindo de banco vazio, build e 6 testes E2E em desktop/celular. Nenhuma conexão social, garantia real, autenticação Nostr ou operação financeira foi habilitada. A Etapa 4 não foi iniciada.
+Cada cliente/aplicação:
 
-Etapa 4 concluída com recebíveis versionados, referências privadas de evidência, validação de metadados de upload, link de confirmação de uso único e pipeline determinístico da plataforma. O token bruto é entregue somente no fragmento do link, removido da barra pelo cliente e nunca persistido; o PostgreSQL guarda apenas SHA-256. Recusa de BTC encerra o recebível, divergência exige correção com nova versão e duplicidade/limite insuficiente impedem aprovação. Histórico de inadimplência do cliente vai para revisão administrativa excepcional, sem endpoint público, com justificativa e auditoria append-only. As rotas `/recebivel` e `/confirmar` comunicam o fluxo; o cadastro público continua bloqueado até autenticação. Validações executadas: lint, tipos, 54 testes unitários/de componentes/integração, 25 testes PostgreSQL partindo de banco vazio, build e 10 testes E2E em desktop/celular. Object storage, envio do link, autenticação e pagamento Lightning não foram habilitados. A Etapa 5 não foi iniciada.
+- escolhe seus próprios critérios;
+- analisa o recebível com seu processo;
+- publica sua própria decisão assinada;
+- pode aprovar um recebível rejeitado por outro cliente.
 
-Etapa 5 concluída com regras financeiras inteiras e versionadas para desconto por prazo/risco limitado a 5%, meta de antecipação, cotação simulada, split 30/70 e distribuição proporcional com resíduo determinístico. Taxas, spread e custos de recebimento são cobrados separadamente da solicitante e reduzem seu desembolso líquido; não reduzem a pool nem o retorno das aportadoras. Pools Full BTC explicitam a variação de sats; pools pareadas registram obrigação USDt Liquid separada da reserva de tesouraria BTC. O banco reserva capacidade atomicamente antes da invoice, impede sobre-financiamento concorrente e exige decisão imutável da solicitante para aceitar parcial ou iniciar reembolso. A rota `/pools` ganhou simulador responsivo, com valores fictícios. Esse registro antecede o início da Etapa 6.
+Uma rejeição significa apenas que aquele cliente não originará a pool segundo sua política. Ela não invalida universalmente o recebível no protocolo.
 
-Etapa 6 implementada tecnicamente para mainnet, conforme substituição expressa registrada na ADR-029, mas o aceite operacional permanece pendente. O pacote oficial `@breeztech/breez-sdk-liquid` está fixado em 0.12.4 e carregou em Node 24 com configuração mainnet. Adapter, worker de eventos/polling, invoices, swaps L-BTC/USDt, backup/restauração, reconciliação e ledger foram isolados no servidor. O PostgreSQL ganhou registros idempotentes de pagamentos, eventos, swaps, sessões mainnet e conciliações em duas migrations. Mainnet continua desligada sem flag, API key e mnemonic; asset IDs são allowlisted; invoices, sessão e carteira quente são limitadas respectivamente a 1.000, 5.000 e 10.000 sats. Resultados desconhecidos bloqueiam retry. Nenhum fundo foi movimentado. A etapa só será marcada concluída após uma invoice controlada ser paga, registrada uma vez e reconciliada por responsável operacional seguindo `docs/15-runbook-breez-mainnet.md`.
+### 3.4 Assinaturas, não confiança na interface
 
-Etapa 7 foi corrigida em 2026-07-15 pela ADR-032: Supabase Auth por link mágico passou a ser o acesso principal, e Nostr ficou restrito ao vínculo opcional de reputação após autenticação. O desafio NIP-98 continua efêmero e de uso único, agora associado à usuária Supabase; não cria sessão Nostr nem autoriza finanças. NIP-46 permanece isolada atrás da interface e nenhum `nsec` é recebido ou persistido. Atestações positivas continuam mínimas, sem PII, valores ou dados do pagador; falha de signer ou relay não bloqueia fluxos da plataforma.
+Toda ação pública relevante precisa ser:
 
-Correção de identidade aprovada em 2026-07-16 pela ADR-033: o link mágico foi substituído por LNURL-auth. A API emite desafio de cinco minutos e uso único, valida assinatura secp256k1 da linking key específica do domínio, associa seu hash a um usuário/reputation_id opaco e entrega sessão revogável por cookie `HttpOnly`. E-mail, telefone, endereço de pagamento e signer Nostr não são credenciais. O login não habilita mainnet financeira; callback móvel real depende da publicação HTTPS estável de `auth.agendacryptoo.com`. Vínculo de carteiras adicionais e recuperação permanecem próximos incrementos de identidade.
+- assinada pelo ator autorizado;
+- validada pelo schema do evento;
+- referenciada no grafo de eventos;
+- aceita pela matriz de autoridades;
+- processada por reducer determinístico.
 
-Etapa 8 concluída como auditoria técnica reproduzível, com decisão operacional `NO_GO`. O asset ID e a precisão 8 do Tether USDt Liquid mainnet foram conferidos na documentação oficial; USDC permanece fora. O código ganhou avaliação `GO`/`NO_GO`, sondagem prepare-only protegida por flag separada, cotação de 60 segundos, teto de slippage de 1%, snapshots com hash para backup/restauração isolada, rescan, contagem de reembolsáveis/resultados desconhecidos e persistência idempotente. A migration 14 elevou o schema a 37 tabelas e impede `GO` incompatível com os guardrails. Foram validados allowlist, precisão e round-trip de unidades, quote expirada, slippage, ausência de execução, reembolsáveis, resultado desconhecido, restauração divergente, reconciliação, idempotência e constraints partindo de banco vazio; lint, tipos, regressões e build ficaram verdes. Sem responsável nomeado, segredos em cofre, diretórios persistentes, rota real, restauração real e conciliação, a decisão permanece `NO_GO`; nenhuma conexão financeira ou movimentação ocorreu.
+O estado não pode ser escolhido apenas pelo evento mais recente.
 
-Etapa 9 preparada tecnicamente sem ativação financeira: as migrations 15–16 elevaram o schema a 40 tabelas e introduziram sessão vinculada à auditoria, aprovação humana expirável, tetos fixos, invoice mainnet ativa única e circuit breaker append-only. A criação de invoice agora exige auditoria `GO`, sessão ativa, aprovação vigente, duas flags e credenciais. O monitor aborta a sessão diante de saldo excessivo, reembolsável, resultado desconhecido ou conciliação divergente. A rota `/demo` ensaia o roteiro e o fallback inteiramente offline, sempre marcado como sem fundos. A etapa continua aberta até operadora, cofre, diretórios persistentes, restauração real e uma invoice mínima paga e reconciliada.
+### 3.5 Uma única fonte canônica
 
-Etapa 11 concluída em 2026-07-18 no escopo de experiência e arquitetura aprovada: o acesso LNURL-auth agora segue diretamente para `/painel`; o painel reúne criação de recebível, pools disponíveis, limite/missões, recebíveis originados e aportes realizados. Uma pessoa pode atuar nos dois papéis, mas somente um recebível ativo é permitido por vez. As rotas redundantes `/demo`, `/limite` e `/reputacao` e seus componentes foram removidos. As pools públicas ficaram exclusivamente BTC, com identificadores opacos, cobertura do principal, risco não coberto e compartilhamento por WhatsApp sem PII. USDt passou ao roadmap. O perfil ainda exibe estados vazios até a próxima etapa ligar os históricos ao PostgreSQL; cadastro completo, upload, confirmação funcional do pagador e aporte DLC não foram ativados. Validações executadas: lint, tipos, 108 testes unitários/de componentes, build de produção, inspeção visual desktop/celular e 14 testes E2E em Chromium desktop e Pixel 7. A Etapa 12 não foi iniciada.
+Não manter dual-write irrestrito entre banco e Nostr.
 
-Complemento demonstrativo da Etapa 11 concluído em 2026-07-18 pela ADR-037: depois do login por carteira, o navegador permite cadastrar um recebível, gerar o link do pagador, simular sua assinatura/aceite de BTC, avaliar sem senha na rota `/administracao`, criar a pool BTC, calcular retorno aproximado e registrar um aporte demonstrativo. O painel passa a mostrar recebíveis e aportes desta execução, e a administração pode reiniciar o roteiro. O estimador informa resultado central e cenários BTC ±10%, sempre como aproximação. O estado é local ao navegador e não movimenta fundos; persistência PostgreSQL, assinatura real do pagador, administração com MFA, carteira operacional de distribuição e DLC permanecem etapas posteriores. Validações: lint, tipos, 110 testes unitários/de componentes, build, inspeção visual e 16 testes E2E desktop/celular. A Etapa 12 não foi iniciada.
+No modo LRP, a ordem é:
 
-Etapa 13 concluída tecnicamente em 2026-07-18 pela ADR-038: o pagador confirma sem depender de NWC e então escolhe autorização automática única ou Lightning manual. A migration 18 adiciona autorizações, conexões cifradas e tentativas; APIs usam token por recurso, mesma origem e rate limit, sem devolver o secret. O worker simulado cria invoice idempotente, liquida uma vez no ledger, cria fallback manual e não repete resultado desconhecido. O adapter NIP-47 real continua bloqueado por flag. Validações: lint sem erros, tipos, 137 testes, PostgreSQL vazio, 20 E2E desktop/mobile (18 na primeira execução e 2 cenários lentos aprovados isoladamente) e build. Mainnet, scheduler real e cobrança automática permanecem desabilitados.
+1. construir evento;
+2. solicitar assinatura;
+3. publicar;
+4. obter quórum mínimo dos relays;
+5. validar assinatura, schema e autoridade;
+6. executar reducer;
+7. persistir apenas a projeção derivada.
 
-Correção de perfil aplicada em 2026-07-19 pela ADR-039: a API de sessão passou a devolver um identificador pseudônimo derivado do `reputation_id`, sem expor a linking key da carteira. O estado demonstrativo foi migrado para namespaces separados por perfil, enquanto pools públicas continuam visíveis a todas as pessoas. “Trocar carteira” revoga o cookie atual antes de emitir outro desafio. O estado legado compartilhado não é migrado automaticamente. A persistência de autenticação permanece no PostgreSQL; recebíveis e aportes do roteiro do hackathon continuam locais ao navegador e precisam ser ligados ao banco para sincronização entre dispositivos.
+---
+
+## 4. Papéis no LRP v0.1
+
+### Prestadora
+
+- cria e assina o recebível público;
+- revisa os termos;
+- assina o `PoolCreated` depois da aprovação;
+- pode cancelar antes de aportes financiados;
+- pode solicitar cancelamento antes do desembolso;
+- pode aceitar financiamento parcial.
+
+### Pagador
+
+- confirma privadamente a obrigação;
+- autoriza pagamento automático por NWC;
+- mantém controle da própria carteira;
+- pode revogar a autorização, assumindo as consequências previstas nos termos.
+
+A plataforma recomenda a Coinos por adequação ao fluxo, mas o LRP aceita qualquer conexão NWC compatível.
+
+### Aportadora
+
+- publica intenção de aporte;
+- negocia e financia seu contrato DLC;
+- recebe participação proporcional;
+- participa de resolução amigável de disputa quando aplicável.
+
+### Cliente originador — concentração temporária no hackathon
+
+Na versão do hackathon, o cliente originador acumula temporariamente:
+
+- validação do recebível;
+- armazenamento cifrado da conexão NWC;
+- executor do agendamento NWC;
+- contraparte dos DLCs;
+- oráculo;
+- coordenação da liquidação.
+
+Essa concentração é uma limitação conhecida e deve permanecer registrada como dívida arquitetural obrigatória.
+
+### Relays
+
+- recebem e distribuem eventos;
+- não validam as regras de negócio;
+- não são autoridade financeira;
+- não podem ser a única fonte disponível.
+
+A configuração inicial usa três relays e exige dois ACKs positivos.
+
+---
+
+## 5. Fronteira entre protocolo e plataforma
+
+### O LRP define
+
+- formatos dos eventos;
+- versões e compatibilidade;
+- referências entre eventos;
+- schemas;
+- builders;
+- validators;
+- reducers;
+- matriz de autoridades;
+- estados e transições;
+- test vectors;
+- regras mínimas de privacidade e segurança;
+- interfaces para Nostr, NWC, DLC e provas financeiras.
+
+### O Elas Recebem Hoje define
+
+- interface e experiência;
+- público prioritário;
+- critérios próprios de análise;
+- documentos solicitados;
+- operação e suporte;
+- política comercial;
+- taxas cobradas pelo cliente;
+- divulgação e comunidade;
+- armazenamento privado;
+- executor usado no hackathon;
+- regras jurídicas e de compliance específicas.
+
+A plataforma pode depender do LRP. O LRP não pode depender da plataforma.
+
+---
+
+## 6. Eventos do LRP v0.1
+
+### Implementados na fundação
+
+- `ProtocolDefinition`
+- `ReceivableCreated`
+- `PayerCommitmentProof`
+- `ClientValidationDecision`
+- `NwcAuthorizationAttestation`
+- `PoolCreated`
+- `PoolTransition`
+
+### Planejados para as etapas financeiras
+
+- `ContributionIntent`
+- `ContributionFunded`
+- `OracleAttestation`
+- `RepaymentSettlement`
+- `DistributionReceipt`
+- `ReputationFact`
+- `PoolReferral`
+- `DisputeEvent`
+
+Os `kind`s permanecem experimentais e centralizados no pacote do protocolo. Eles não devem ser apresentados como NIP oficial.
+
+---
+
+## 7. Momento exato da criação da pool
+
+A pool somente passa a existir no protocolo quando todas as condições abaixo forem satisfeitas:
+
+1. a prestadora publica um `ReceivableCreated` válido;
+2. o pagador confirma privadamente o recebível;
+3. o cliente originador publica um `PayerCommitmentProof` referente à confirmação privada;
+4. o cliente analisa o recebível segundo seus próprios critérios;
+5. o cliente publica `ClientValidationDecision = APPROVED`;
+6. a conexão NWC é validada e armazenada de forma cifrada;
+7. o cliente publica `NwcAuthorizationAttestation = ACTIVE`;
+8. a prestadora revisa os termos da pool;
+9. a prestadora assina `PoolCreated`;
+10. o evento recebe ACK positivo de pelo menos dois entre três relays;
+11. validator e reducer aceitam o grafo de referências.
+
+A assinatura da prestadora representa o aceite dos termos. O banco não cria a pool por conta própria.
+
+---
+
+## 8. Regras financeiras e operacionais confirmadas
+
+### 8.1 NWC
+
+NWC é obrigatório para a criação da pool nesta versão.
+
+Política de execução:
+
+1. primeira tentativa no vencimento;
+2. segunda tentativa após uma hora em erro temporário;
+3. última tentativa após 24 horas;
+4. fallback manual após falha definitiva;
+5. estado `OVERDUE` após 48 horas;
+6. estado `DEFAULTED` após sete dias;
+7. resultado `UNKNOWN` bloqueia novas tentativas até reconciliação.
+
+A URI e o secret NWC permanecem cifrados e nunca são publicados.
+
+### 8.2 Financiamento parcial
+
+- abaixo de 50%: a pool não pode ser aceita e segue para reembolso;
+- entre 50% e 99,99%: a prestadora possui 24 horas para aceitar;
+- ausência de resposta em 24 horas: reembolso;
+- 100%: fechamento integral permitido.
+
+### 8.3 Cancelamento
+
+- sem aporte financiado: cancelamento livre pela prestadora;
+- com aporte e antes do desembolso: cancelamento somente com reembolso;
+- depois do desembolso: cancelamento proibido.
+
+### 8.4 Atraso
+
+- multa fixa: 2%;
+- juros por atraso: 0,1% ao dia;
+- limite total da penalidade: 10%;
+- beneficiárias da penalidade: aportadoras, conforme a participação.
+
+### 8.5 DLC
+
+- um DLC por aporte;
+- cliente originador como contraparte na versão do hackathon;
+- funding outpoint público;
+- negociação completa privada;
+- cliente originador como oráculo na v0.1;
+- evolução futura para oráculos independentes 2 de 3.
+
+### 8.6 Liquidação e taxas on-chain
+
+A liquidação inicial das aportadoras será on-chain.
+
+A interface precisa estimar as taxas antes da assinatura. A operação deve ser rejeitada quando a estimativa total de taxas on-chain superar 2% do aporte, salvo nova política explicitamente versionada e aceita.
+
+### 8.7 Disputa
+
+Quando uma disputa for aberta:
+
+- os fundos permanecem bloqueados;
+- nenhuma distribuição é executada;
+- os eventos registram provas e decisões;
+- a versão do hackathon usa o cliente originador na resolução final;
+- a evolução futura separará árbitro, oráculo e executor.
+
+### 8.8 Divulgação entre clientes
+
+Outro cliente pode divulgar uma pool e cobrar um percentual do valor financiado através da sua referência.
+
+A atribuição precisa ser comprovada por `PoolReferral`, referenciado em `ContributionIntent` e preservado em `ContributionFunded`.
+
+---
+
+## 9. Estado técnico concluído
+
+### Fundação do produto
+
+- aplicação Next.js e painel;
+- autenticação LNURL-auth para a sessão da plataforma;
+- domínio financeiro e ledger;
+- PostgreSQL/Drizzle;
+- fluxos demonstrativos de recebível, confirmação, análise, pool e aporte;
+- NWC privado e scheduler simulado;
+- guardrails, testes e build.
+
+### Fundação do LRP
+
+- catálogo de kinds;
+- versão `lrp/0.1.0`;
+- schemas e vetores canônicos;
+- builders e validators;
+- prevenção de PII e secrets;
+- adapters NIP-07, NIP-46, aplicativo externo e fake;
+- publisher/subscriber;
+- três relays com quórum de dois;
+- reducers e matriz de autoridades;
+- cache apagável e reconstruível;
+- comando `lrp:rebuild-cache`;
+- página técnica/pública reconstruída do grafo Nostr;
+- testes unitários, integração, build e E2E.
+
+### Primeiro corte concluído
+
+A criação real do recebível foi migrada de forma controlada:
+
+- `LEGACY` preserva exatamente o fluxo anterior e continua sendo o modo padrão;
+- `SHADOW` persiste o rascunho privado, constrói e valida o candidato `ReceivableCreated`, sem publicá-lo ou alterar a autoridade do legado;
+- `LRP` persiste os dados privados, solicita a assinatura Nostr da prestadora, verifica a correspondência exata com o candidato, publica o mesmo event ID com quórum de dois entre três relays, cria o vínculo imutável e atualiza a projeção reconstruível;
+- retries reutilizam o mesmo evento assinado e não criam um evento equivalente;
+- dados pessoais e documentos permanecem fora do evento público;
+- a migration `0021_lrp_receivable_originations.sql` adiciona o armazenamento necessário sem alterar migrations anteriores.
+
+### O que ainda não foi migrado
+
+Continuam no fluxo legado:
+
+- confirmação do pagador em `/confirmar`;
+- decisão administrativa ou do originador em `/administracao`;
+- atestado NWC;
+- criação da pool e leitura pública em `/pools`;
+- leituras agregadas em `/painel`.
+
+Não considerar concluída a migração apenas porque a criação do recebível e a infraestrutura técnica já usam o LRP.
+
+---
+
+## 10. Primeiro corte — migração gradual da plataforma para o LRP
+
+### Objetivo
+
+Migrar, em commits independentes, a primeira vertical slice real da plataforma para que o fluxo de originação utilize o LRP como fonte canônica dos estados públicos. A criação do recebível foi concluída; os demais passos exigem autorização específica.
+
+### Escopo do primeiro corte
+
+Migrar, no fluxo real da plataforma:
+
+1. criação pública do recebível — concluída no commit `b471503`;
+2. prova pública da confirmação privada — pendente;
+3. decisão do cliente originador — pendente;
+4. atestado público NWC — pendente;
+5. assinatura e publicação da pool — pendente;
+6. leitura da página pública da pool pelo reducer LRP — pendente;
+7. projeção reconstruível no banco — infraestrutura concluída para o recebível e pendente para os demais estados.
+
+### Fora do primeiro corte
+
+- aporte real;
+- DLC real;
+- mainnet;
+- pagamento NWC real;
+- distribuição on-chain;
+- reputação completa;
+- divulgação entre clientes;
+- disputas reais;
+- separação dos papéis do cliente originador.
+
+### Compatibilidade e feature flags
+
+A migração deve usar modos explícitos:
+
+- `LEGACY`: fluxo atual, sem construir, assinar ou publicar eventos LRP; permanece como padrão;
+- `SHADOW`: fluxo atual ativo, dados privados persistidos e candidatos LRP construídos e comparados sem publicação ou autoridade;
+- `LRP`: eventos LRP são canônicos para o estado público; o banco mantém os dados privados, vínculos imutáveis e projeções reconstruíveis.
+
+Não remover o fluxo legado antes de:
+
+- reconstrução comprovada;
+- testes completos;
+- rollback documentado;
+- aprovação explícita da fundadora.
+
+### Critérios de aceite do primeiro corte
+
+A etapa somente estará concluída quando:
+
+1. a prestadora criar o recebível no fluxo real;
+2. cada evento necessário for assinado pelo ator correto;
+3. a pool receber dois ACKs entre três relays;
+4. outro navegador reconstruir a pool;
+5. a página pública não depender de uma tabela canônica;
+6. apagar as projeções e executar `lrp:rebuild-cache` reproduzir o estado;
+7. dados sensíveis permanecerem fora dos eventos;
+8. a plataforma puder voltar ao modo legado sem perda;
+9. lint, TypeScript, Vitest, integração, build e E2E passarem;
+10. mainnet e dinheiro real permanecerem desligados.
+
+---
+
+## 11. Próximas etapas após a migração da originação
+
+1. integrar `ContributionIntent` ao fluxo da aportadora;
+2. implementar adapter e fake completo de DLC;
+3. publicar `ContributionFunded` com prova pública;
+4. migrar transições de financiamento parcial e integral;
+5. integrar executor NWC controlado;
+6. publicar pagamento, atraso e default;
+7. liquidar contratos em ambiente seguro de testes;
+8. publicar fatos de reputação;
+9. implementar referrals entre clientes;
+10. implementar disputas;
+11. separar os papéis operacionais do cliente originador.
+
+---
+
+## 12. Roadmap obrigatório de descentralização
+
+A versão do hackathon não é o estado final.
+
+A evolução do LRP deve buscar:
+
+- validadores independentes;
+- cliente originador sem controle unilateral;
+- múltiplas contrapartes DLC;
+- executores NWC escolhidos pelas partes;
+- agentes autocustodiais operados pelo pagador;
+- oráculos 2 de 3;
+- árbitros independentes;
+- continuidade mesmo se o cliente originador sair do ar;
+- interoperabilidade entre diferentes clientes e interfaces;
+- menor dependência de infraestrutura central;
+- extração futura do LRP para repositório próprio quando houver maturidade e segunda implementação.
+
+---
+
+## 13. Guardrails permanentes
+
+- nenhuma mainnet sem aprovação explícita;
+- nenhum dinheiro real no hackathon sem plano operacional aprovado;
+- nenhum `nsec`, seed, mnemonic ou secret em código, log ou evento;
+- nenhuma PII em relays;
+- nenhuma alteração de migration existente sem revisão;
+- nenhum resultado `UNKNOWN` tratado como falha comum;
+- nenhum processo de teste escondido com `process.exit` ou equivalente;
+- nenhuma remoção do fluxo legado antes dos critérios de corte;
+- cada etapa em commits pequenos e revisáveis;
+- documentação e ADR atualizadas ao final de cada corte.
+
+---
+
+## 14. Regra de atualização deste documento
+
+Este arquivo é a fonte de verdade do plano atual.
+
+Registros históricos detalhados devem permanecer em ADRs, changelog ou seção própria de histórico. Não misturar decisões superadas com a arquitetura vigente.
+
+Ao concluir cada etapa, registrar:
+
+- commit(s);
+- arquivos principais;
+- decisões;
+- testes;
+- limitações;
+- itens adiados;
+- impacto na descentralização.
