@@ -7,13 +7,16 @@ import { currentLrpModePolicy } from "@/config/lrp-mode";
 import { assertJsonPayloadSize, assertSameOrigin, enforceRateLimit } from "@/lib/api-security";
 import { withSessionProfile } from "@/lib/app-session";
 import { preparePayerCommitmentProof, publishPayerCommitmentProof } from "@/services/lrp-payer-confirmation-service";
+import { evaluateAndPrepareValidationDecision, publishValidationDecision } from "@/services/lrp-validation-decision-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store, private", "Referrer-Policy": "no-referrer" };
 const prepareSchema = z.object({ action: z.literal("prepare_payer_commitment"), receivableId: z.string().uuid() }).strict();
 const publishSchema = z.object({ action: z.literal("publish_payer_commitment"), originatorEventId: z.string().uuid(), event: protocolSignedEventSchema.optional() }).strict();
-const bodySchema = z.discriminatedUnion("action", [prepareSchema, publishSchema]);
+const validationSchema = z.object({ action: z.literal("evaluate_validation"), receivableId: z.string().uuid(), correlationId: z.string().uuid() }).strict();
+const publishValidationSchema = z.object({ action: z.literal("publish_validation"), originatorEventId: z.string().uuid(), event: protocolSignedEventSchema.optional() }).strict();
+const bodySchema = z.discriminatedUnion("action", [prepareSchema, publishSchema, validationSchema, publishValidationSchema]);
 
 function relayClients() {
   return lrpRelaysFromEnvironment().map((relay) => new NostrToolsRelayClient(relay));
@@ -39,15 +42,33 @@ export async function POST(request: Request) {
         });
         return NextResponse.json(prepared, { headers });
       }
+      if (body.action === "evaluate_validation") {
+        const prepared = await evaluateAndPrepareValidationDecision(db, {
+          receivableId: body.receivableId,
+          mode: policy.mode === "SHADOW" ? "SHADOW" : "LRP",
+          originatorPubkey: profile.nostrPubkey,
+          now: new Date(),
+          correlationId: body.correlationId,
+        });
+        return NextResponse.json(prepared, { status: 201, headers });
+      }
       if (policy.mode !== "LRP") throw new Error("LRP_PUBLICATION_DISABLED");
       clients = relayClients();
-      const published = await publishPayerCommitmentProof(db, {
+      const published = body.action === "publish_validation"
+        ? await publishValidationDecision(db, {
+          originatorEventId: body.originatorEventId,
+          originatorPubkey: profile.nostrPubkey,
+          signedEvent: body.event,
+          clients,
+          now: new Date(),
+        })
+        : await publishPayerCommitmentProof(db, {
         originatorEventId: body.originatorEventId,
         originatorPubkey: profile.nostrPubkey,
         signedEvent: body.event,
         clients,
         now: new Date(),
-      });
+        });
       return NextResponse.json(published, { status: published.publicationStatus === "CONFIRMED" ? 201 : 202, headers });
     });
   } catch (error) {
