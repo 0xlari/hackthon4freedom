@@ -1027,6 +1027,10 @@ svg {
 .admin-demo__list dd { margin: 0; font-weight: 750; text-align: right; }
 .admin-demo__message, .contribution-success { border-radius: var(--radius-sm); background: var(--green-soft); color: var(--green); padding: .8rem 1rem; font-weight: 750; }
 .empty-demo-state { border: 1px dashed var(--line); border-radius: var(--radius-md); padding: 2rem; color: var(--ink-soft); text-align: center; }
+.lrp-pool-state { align-items: flex-start; background: #fff4db; border: 1px solid #e8c77b; border-radius: var(--radius-md); color: #684a0c; display: flex; gap: .65rem; margin: .75rem 0; padding: .85rem 1rem; }
+.lrp-pool-state p { margin: 0; }
+.lrp-pool-state p + p { margin-top: .25rem; }
+.pool-card[data-source="LRP"] code, .pool-detail[data-source="LRP"] code { overflow-wrap: anywhere; }
 .contribution-estimator { gap: 1rem; }
 .contribution-estimator button { border: 0; cursor: pointer; }
 .return-estimate { display: grid; gap: 1rem; border-radius: var(--radius-md); background: var(--green); color: white; padding: 1.2rem; }

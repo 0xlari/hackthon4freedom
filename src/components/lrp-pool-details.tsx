@@ -1,0 +1,41 @@
+"use client";
+
+import { AlertTriangle, BadgeCheck, Bitcoin, Clock3, MessageCircle, ShieldCheck, TrendingUp, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { LrpPoolOperationalState } from "@/components/lrp-pools-explorer";
+import type { LrpPoolPublicView, LrpPoolReadResult } from "@/services/lrp-pool-read-service";
+
+const sats = (value: string) => `${Number(value).toLocaleString("pt-BR")} sats`;
+const date = (value: number) => new Intl.DateTimeFormat("pt-BR").format(new Date(value * 1_000));
+const bps = (value: number) => `${(value / 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
+
+export function LrpPoolDetails({ poolId }: { poolId: string }) {
+  const [result, setResult] = useState<LrpPoolReadResult | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/lrp/pools?poolId=${encodeURIComponent(poolId)}`, { cache: "no-store" }).then(async (response) => {
+      const body = await response.json() as LrpPoolReadResult;
+      if (active) setResult(body);
+    }).catch(() => active && setResult({ status: "UNAVAILABLE", pools: [], issues: ["DATABASE_UNAVAILABLE"] }));
+    return () => { active = false; };
+  }, [poolId]);
+  if (!result) return <div className="shell empty-demo-state" role="status">Carregando projeção LRP…</div>;
+  const pool = result.pools[0];
+  if (!pool) return <div className="shell empty-demo-state"><LrpPoolOperationalState issues={result.issues.length ? result.issues : ["PROJECTION_NOT_FOUND"]} /></div>;
+  return <LrpPoolDetailsView pool={pool} />;
+}
+
+export function LrpPoolDetailsView({ pool }: { pool: LrpPoolPublicView }) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`Ajude esta pool BTC a fechar. Veja prazo, riscos e verificação LRP: ${siteUrl}/pools/${pool.poolId}`)}`;
+  return <div className="shell pool-detail" data-source="LRP">
+    <header className="pool-detail__header"><span className="eyebrow"><Bitcoin aria-hidden="true" size={16} /> Pool BTC · LRP v0.1</span><h1>{pool.title}</h1><p>{pool.providerPseudonym} · {pool.originalCurrency}. Dados pessoais, documentos e autorizações de pagamento permanecem privados.</p>{pool.verified ? <span className="tag tag--soft"><BadgeCheck size={15} /> Evento verificado em {pool.relayConfirmations} relays</span> : <span className="tag tag--soft"><AlertTriangle size={15} /> Verificação pendente</span>}</header>
+    <LrpPoolOperationalState issues={pool.issues} />
+    <div className="pool-detail__layout"><main>
+      <section className="pool-detail__amount"><span>Meta da pool</span><strong>{sats(pool.targetSats)}</strong><div className="progress" role="progressbar" aria-label={`${pool.progressBps / 100}% financiado`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pool.progressBps / 100}><span style={{ width: `${pool.progressBps / 100}%` }} /></div><small>Estado: {pool.state} · mínimo parcial {bps(pool.minimumPartialBps)} · financiamento até {date(pool.fundingDeadline)}</small></section>
+      <section className="pool-detail__facts" aria-label="Condições públicas da pool"><article><Clock3 aria-hidden="true" /><span>Vencimento</span><strong>{date(pool.dueAt)}</strong></article><article><TrendingUp aria-hidden="true" /><span>Desconto / retorno</span><strong>{bps(pool.discountBps)} / {bps(pool.expectedReturnBps)}</strong></article><article><ShieldCheck aria-hidden="true" /><span>Penalidade por atraso</span><strong>{bps(pool.fixedLateFeeBps)} + {bps(pool.dailyLateInterestBps)}/dia, limite {bps(pool.maximumPenaltyBps)}</strong></article><article><Users aria-hidden="true" /><span>Reputação pública</span><strong>{pool.publicReputation.length ? pool.publicReputation.join(", ") : "Ainda sem fatos públicos"}</strong></article></section>
+      <section className="risk-card"><h2>Verificação pública</h2><p>Cliente originador: <code>{pool.originatorPubkey.slice(0, 12)}…</code></p><p>Event ID: <code>{pool.eventId}</code></p><p>A projeção foi derivada pelo reducer do LRP. Ela pode ser reconstruída sem alterar o evento canônico.</p></section>
+    </main><aside className="pool-detail__action"><span className="kicker">Aportes ainda indisponíveis</span><h2>Somente leitura neste corte</h2><p>Nenhum aporte, DLC ou pagamento é criado nesta tela.</p><button className="button button--primary" type="button" disabled>Aporte desabilitado</button><a className="share-link share-link--large" href={whatsappUrl} target="_blank" rel="noreferrer"><MessageCircle aria-hidden="true" size={18} /> Compartilhar no WhatsApp</a></aside></div>
+  </div>;
+}
