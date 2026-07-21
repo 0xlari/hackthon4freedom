@@ -10,6 +10,7 @@ import { Nip07Signer, type Nip07Window } from "@nostr/signer";
 
 type RelayResult = { events: ProtocolSignedEvent[] };
 type NwcPreparation = { maxAmountMsat: string; dueAt: string; expiresAt: string; safeFingerprint: string; lastValidatedAt: string };
+const LRP_ORIGINATOR_TERMS_VERSION = "lrp-originator/0.1";
 
 async function sha256(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
@@ -61,9 +62,9 @@ export function ProtocolOriginatorFlow({ receivableEventId }: { receivableEventI
         const nwcResponse = await fetch("/api/protocol/nwc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "prepare", receivableEventId: receivable.event.id, nwcUri: String(data.get("nwcUri")), maxAmountMsat: String(data.get("maxAmountMsat")), dueAt: dueAt.toISOString(), expiresAt: expiresAt.toISOString() }) });
         const rawNwc = await nwcResponse.json(); if (!nwcResponse.ok) throw new Error((rawNwc as { error?: string }).error ?? "Conexão NWC inválida."); nwc = rawNwc as NwcPreparation;
       }
-      const privateConfirmationHash = await sha256(JSON.stringify({ receivable: receivable.event.id, terms: "originator-v0.1", acceptsBitcoin: true, nonce }));
+      const privateConfirmationHash = await sha256(JSON.stringify({ receivable: receivable.event.id, terms: LRP_ORIGINATOR_TERMS_VERSION, acceptsBitcoin: true, nonce }));
       setStatus("Assinando a confirmação privada do cliente…");
-      const commitment = await publish(signer, buildPayerCommitmentProof({ protocol_version: LRP_EVENT_VERSION, event_type: "PayerCommitmentProof", proof_id: crypto.randomUUID(), receivable_event_id: receivable.event.id, private_confirmation_hash: privateConfirmationHash, confirmed_at: now, terms_version: "lrp-originator/0.1", accepts_bitcoin: true, has_nwc_authorization: decision === "APPROVED", originator_pubkey: pubkey }));
+      const commitment = await publish(signer, buildPayerCommitmentProof({ protocol_version: LRP_EVENT_VERSION, event_type: "PayerCommitmentProof", proof_id: crypto.randomUUID(), receivable_event_id: receivable.event.id, private_confirmation_hash: privateConfirmationHash, confirmed_at: now, terms_version: LRP_ORIGINATOR_TERMS_VERSION, accepts_bitcoin: true, has_nwc_authorization: decision === "APPROVED", originator_pubkey: pubkey }));
       setStatus("Assinando a decisão independente…");
       const validation = await publish(signer, buildClientValidationDecision({ protocol_version: LRP_EVENT_VERSION, event_type: "ClientValidationDecision", decision_id: crypto.randomUUID(), receivable_event_id: receivable.event.id, decision, policy_version: "lrp-validation/0.1", reason_codes: [String(data.get("reasonCode") || "TERMS_VERIFIED").toUpperCase().replace(/[^A-Z0-9_]/g, "_")], decided_at: now, client_pubkey: pubkey }));
       if (decision !== "APPROVED") { setDone(true); setStatus(`Decisão ${decision} publicada. Nenhuma pool pode ser criada com esta decisão.`); return; }

@@ -31,5 +31,7 @@ describe("ProtocolOriginatorFlow", () => {
     fireEvent.click(screen.getByRole("button", { name: /Confirmar, assinar/ })); await screen.findByText(/confirmados por pelo menos dois relays/);
     const calls = vi.mocked(fetch).mock.calls.filter(([url]) => String(url) === "/api/protocol/events"); expect(calls).toHaveLength(3);
     for (const [, init] of calls) expect(String(init?.body)).not.toContain("nostr+walletconnect");
+    const commitment = JSON.parse(String(calls[0]?.[1]?.body)) as { content: string };
+    expect(JSON.parse(commitment.content)).toMatchObject({ protocol_version: "lrp/0.1.0", terms_version: "lrp-originator/0.1" });
   });
 });
