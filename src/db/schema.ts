@@ -175,6 +175,18 @@ export const scheduledPaymentAttemptStatus = pgEnum(
   "scheduled_payment_attempt_status",
   scheduledPaymentAttemptStatuses,
 );
+export const lrpCanonicalSource = pgEnum("lrp_canonical_source", ["LEGACY", "LRP"]);
+export const lrpPublicationStatus = pgEnum("lrp_publication_status", [
+  "PENDING",
+  "CONFIRMED",
+  "INSUFFICIENT_ACKS",
+  "REJECTED",
+]);
+export const lrpProjectionRunStatus = pgEnum("lrp_projection_run_status", [
+  "RUNNING",
+  "COMPLETED",
+  "FAILED",
+]);
 
 const createdAt = timestamp("created_at", {
   mode: "date",
@@ -792,6 +804,126 @@ export const protocolNwcAuthorizations = pgTable(
     check("protocol_nwc_authorizations_fingerprint_shape", sql`${table.safeFingerprint} ~ '^[a-f0-9]{64}$'`),
     check("protocol_nwc_authorizations_amount_positive", sql`${table.maxAmountMsat} > 0`),
     check("protocol_nwc_authorizations_expiry", sql`${table.expiresAt} > ${table.dueAt}`),
+  ],
+);
+
+export const lrpPublicEvents = pgTable(
+  "lrp_public_events",
+  {
+    eventId: text("event_id").primaryKey(),
+    kind: integer("kind").notNull(),
+    pubkey: text("pubkey").notNull(),
+    eventCreatedAt: integer("event_created_at").notNull(),
+    tags: jsonb("tags").notNull(),
+    content: text("content").notNull(),
+    signature: text("signature").notNull(),
+    observedRelays: jsonb("observed_relays").notNull().default([]),
+    firstSeenAt: timestamp("first_seen_at", { mode: "date", withTimezone: true }).notNull(),
+    lastSyncedAt: timestamp("last_synced_at", { mode: "date", withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check("lrp_public_events_id_shape", sql`${table.eventId} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_public_events_pubkey_shape", sql`${table.pubkey} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_public_events_signature_shape", sql`${table.signature} ~ '^[a-f0-9]{128}$'`),
+    check("lrp_public_events_kind_range", sql`${table.kind} between 8100 and 8114`),
+    index("lrp_public_events_kind_created_idx").on(table.kind, table.eventCreatedAt),
+  ],
+);
+
+export const lrpPublicationAttempts = pgTable(
+  "lrp_publication_attempts",
+  {
+    id: text("id").primaryKey(),
+    idempotencyKey: text("idempotency_key").notNull().unique(),
+    entityType: text("entity_type").notNull(),
+    privateEntityId: text("private_entity_id").notNull(),
+    eventId: text("event_id").notNull().references(() => lrpPublicEvents.eventId, { onDelete: "restrict" }),
+    status: lrpPublicationStatus("status").notNull().default("PENDING"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    acknowledgedRelays: jsonb("acknowledged_relays").notNull().default([]),
+    rejectedRelays: jsonb("rejected_relays").notNull().default([]),
+    timedOutRelays: jsonb("timed_out_relays").notNull().default([]),
+    lastErrorCode: text("last_error_code"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    check("lrp_publication_attempts_entity_type", sql`${table.entityType} in ('RECEIVABLE', 'POOL', 'ORIGINATOR_FACT')`),
+    check("lrp_publication_attempts_count_non_negative", sql`${table.attemptCount} >= 0`),
+    index("lrp_publication_attempts_entity_idx").on(table.entityType, table.privateEntityId),
+  ],
+);
+
+export const lrpEntityLinks = pgTable(
+  "lrp_entity_links",
+  {
+    id: text("id").primaryKey(),
+    entityType: text("entity_type").notNull(),
+    privateEntityId: text("private_entity_id").notNull(),
+    eventType: text("event_type").notNull(),
+    eventId: text("event_id").notNull().references(() => lrpPublicEvents.eventId, { onDelete: "restrict" }),
+    canonicalSource: lrpCanonicalSource("canonical_source").notNull(),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex("lrp_entity_links_private_event_type_unique").on(table.entityType, table.privateEntityId, table.eventType),
+    uniqueIndex("lrp_entity_links_event_unique").on(table.eventId),
+    check("lrp_entity_links_entity_type", sql`${table.entityType} in ('RECEIVABLE', 'POOL')`),
+  ],
+);
+
+export const lrpReceivableProjections = pgTable(
+  "lrp_receivable_projections",
+  {
+    receivableEventId: text("receivable_event_id").primaryKey().references(() => lrpPublicEvents.eventId, { onDelete: "restrict" }),
+    receivableId: text("receivable_id").notNull(),
+    providerPubkey: text("provider_pubkey").notNull(),
+    projection: jsonb("projection").notNull(),
+    projectedAt: timestamp("projected_at", { mode: "date", withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("lrp_receivable_projections_public_id_unique").on(table.receivableId),
+    check("lrp_receivable_projections_provider_shape", sql`${table.providerPubkey} ~ '^[a-f0-9]{64}$'`),
+  ],
+);
+
+export const lrpPoolProjections = pgTable(
+  "lrp_pool_projections",
+  {
+    poolEventId: text("pool_event_id").primaryKey().references(() => lrpPublicEvents.eventId, { onDelete: "restrict" }),
+    poolId: text("pool_id").notNull(),
+    providerPubkey: text("provider_pubkey").notNull(),
+    originatorPubkey: text("originator_pubkey").notNull(),
+    state: text("state").notNull(),
+    latestEventId: text("latest_event_id").notNull(),
+    progressBps: integer("progress_bps").notNull().default(0),
+    projection: jsonb("projection").notNull(),
+    projectedAt: timestamp("projected_at", { mode: "date", withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("lrp_pool_projections_public_id_unique").on(table.poolId),
+    check("lrp_pool_projections_provider_shape", sql`${table.providerPubkey} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_pool_projections_originator_shape", sql`${table.originatorPubkey} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_pool_projections_latest_event_shape", sql`${table.latestEventId} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_pool_projections_progress_range", sql`${table.progressBps} between 0 and 10000`),
+    index("lrp_pool_projections_state_idx").on(table.state),
+  ],
+);
+
+export const lrpProjectionRuns = pgTable(
+  "lrp_projection_runs",
+  {
+    id: text("id").primaryKey(),
+    status: lrpProjectionRunStatus("status").notNull().default("RUNNING"),
+    eventCount: integer("event_count").notNull().default(0),
+    receivableCount: integer("receivable_count").notNull().default(0),
+    poolCount: integer("pool_count").notNull().default(0),
+    inconsistencies: jsonb("inconsistencies").notNull().default([]),
+    startedAt: timestamp("started_at", { mode: "date", withTimezone: true }).notNull(),
+    finishedAt: timestamp("finished_at", { mode: "date", withTimezone: true }),
+  },
+  (table) => [
+    check("lrp_projection_runs_counts_non_negative", sql`${table.eventCount} >= 0 and ${table.receivableCount} >= 0 and ${table.poolCount} >= 0`),
   ],
 );
 
