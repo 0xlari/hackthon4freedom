@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { reducePoolState } from "@protocol/reducers";
 import type { PoolTransition, ProtocolSignedEvent } from "@protocol/schemas";
 import { NostrToolsRelayClient, lrpRelaysFromEnvironment } from "@nostr/relays";
-import { subscribeProtocolEvents } from "@nostr/subscriber";
+import { hasRelayObservationQuorum, subscribeProtocolEvents } from "@nostr/subscriber";
 import { verifyProtocolEventForSubscription } from "@nostr/verification";
 
 export const runtime = "nodejs"; export const dynamic = "force-dynamic";
@@ -15,6 +15,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   try {
     const rootResult = await subscribeProtocolEvents(clients, { eventIds: [id], limit: 10 }, verifyProtocolEventForSubscription); const root = rootResult.events.find((item) => item.id === id);
     if (!root) return NextResponse.json({ error: "POOL_NOT_FOUND" }, { status: 404, headers });
+    if (!hasRelayObservationQuorum(rootResult, id, 2)) return NextResponse.json({ error: "POOL_RELAY_QUORUM_INSUFFICIENT", observedOn: rootResult.observedOn[id] ?? [], unavailableRelays: rootResult.unavailableRelays }, { status: 503, headers });
     const rootContent = JSON.parse(root.content) as { event_type?: string }; if (rootContent.event_type !== "PoolCreated") return NextResponse.json({ error: "EVENT_IS_NOT_POOL" }, { status: 400, headers });
     const references = root.tags.filter((tag) => tag[0] === "e").map((tag) => tag[1]).filter((value): value is string => Boolean(value));
     const [prerequisites, transitions] = await Promise.all([

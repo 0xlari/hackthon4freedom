@@ -17,6 +17,7 @@ async function signVector(index: number, signer: FakeSigner, overrides: Record<s
   const pubkey = await signer.getPublicKey();
   const content = { ...vector.content, ...overrides } as ProtocolContent;
   if (content.event_type === "ReceivableCreated") content.provider_pubkey = pubkey;
+  if (content.event_type === "PayerCommitmentProof") content.originator_pubkey = pubkey;
   if (content.event_type === "ClientValidationDecision") content.client_pubkey = pubkey;
   if (content.event_type === "NwcAuthorizationAttestation") content.executor_pubkey = pubkey;
   if (content.event_type === "PoolTransition") content.actor_pubkey = pubkey;
@@ -37,6 +38,19 @@ describe("LRP builders and validators", () => {
     expect(validateProtocolEvent({ ...event, sig: "0".repeat(128) })).toMatchObject({ valid: false, reason: "INVALID_NOSTR_SIGNATURE" });
     const bad = finalizeEvent({ ...buildProtocolEvent(validContentVectors[1]!.kind as ProtocolKind, validContentVectors[1]!.content), content: "{}" }, new Uint8Array(32).fill(11));
     expect(validateProtocolEvent(bad)).toMatchObject({ valid: false, reason: "INVALID_CONTENT_SCHEMA" });
+  });
+
+  it("rejects a payer commitment that claims another originator", async () => {
+    const attacker = new FakeSigner(new Uint8Array(32).fill(14));
+    const vector = validContentVectors[2]!;
+    const event = await attacker.signEvent(buildProtocolEvent(
+      vector.kind as ProtocolKind,
+      { ...vector.content, originator_pubkey: await originator.getPublicKey() } as ProtocolContent,
+    ));
+    expect(validateProtocolEvent(event)).toMatchObject({
+      valid: false,
+      reason: "ORIGINATOR_AUTHOR_MISMATCH",
+    });
   });
 
   it("rejects known PII and NWC credentials even when signed", async () => {

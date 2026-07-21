@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { InMemoryRelayClient } from "../relays";
 import { FakeSigner } from "../signer";
-import { subscribeProtocolEvents } from "./index";
+import { hasRelayObservationQuorum, subscribeProtocolEvents } from "./index";
 
 const signer = new FakeSigner(new Uint8Array(32).fill(10));
 const event = await signer.signEvent({ kind: 8101, created_at: 1_800_000_000, tags: [["receivable", "demo_receivable_01"]], content: "{}" });
@@ -22,5 +22,12 @@ describe("protocol subscriber", () => {
     const result = await subscribeProtocolEvents([relay], {}, () => ({ valid: false, reason: "INVALID_SCHEMA" }));
     expect(result.events).toEqual([]);
     expect(result.rejected[0]?.reason).toBe("INVALID_SCHEMA");
+  });
+
+  it("requires independent relay observations before admitting a public root", async () => {
+    const one = { observedOn: { [event.id]: ["wss://one.example/"] } };
+    const two = { observedOn: { [event.id]: ["wss://one.example/", "wss://two.example/"] } };
+    expect(hasRelayObservationQuorum(one, event.id)).toBe(false);
+    expect(hasRelayObservationQuorum(two, event.id)).toBe(true);
   });
 });

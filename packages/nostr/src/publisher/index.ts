@@ -19,6 +19,12 @@ export type RelaySetPublication = Readonly<{
   durationMs: number;
 }>;
 
+export type RelaySetPublicationRetry = Readonly<{
+  event: ProtocolSignedEvent;
+  status: RelaySetPublication["status"];
+  attempts: readonly RelaySetPublication[];
+}>;
+
 export async function publishToRelaySet(
   event: ProtocolSignedEvent,
   clients: readonly ProtocolRelayClient[],
@@ -50,4 +56,25 @@ export async function publishToRelaySet(
     requiredAcks,
     durationMs: Date.now() - started,
   };
+}
+
+export async function publishSameEventWithRetry(
+  event: ProtocolSignedEvent,
+  clients: readonly ProtocolRelayClient[],
+  options: Readonly<{ requiredAcks?: number; maxAttempts?: number }> = {},
+): Promise<RelaySetPublicationRetry> {
+  const requiredAcks = options.requiredAcks ?? 2;
+  const maxAttempts = options.maxAttempts ?? 3;
+  if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 10) {
+    throw new Error("INVALID_RELAY_RETRY_LIMIT");
+  }
+  const attempts: RelaySetPublication[] = [];
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const publication = await publishToRelaySet(event, clients, requiredAcks);
+    attempts.push(publication);
+    if (publication.status === "CONFIRMED") {
+      return { event, status: "CONFIRMED", attempts };
+    }
+  }
+  return { event, status: "INSUFFICIENT_ACKS", attempts };
 }

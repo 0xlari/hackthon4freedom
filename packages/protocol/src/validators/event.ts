@@ -38,6 +38,7 @@ export function validateProtocolEvent(input: unknown): ProtocolEventValidation {
   if (!event.tags.some((tag) => tag[0] === "alt" && Boolean(tag[1]))) return { valid: false, reason: "ALT_TAG_REQUIRED" };
   if (!event.tags.some((tag) => tag[0] === "protocol" && tag[1] === LRP_IDENTIFIER && tag[2] === LRP_EVENT_VERSION)) return { valid: false, reason: "PROTOCOL_TAG_REQUIRED" };
   if (parsed.data.event_type === "ReceivableCreated" && parsed.data.provider_pubkey !== event.pubkey) return { valid: false, reason: "PROVIDER_AUTHOR_MISMATCH" };
+  if (parsed.data.event_type === "PayerCommitmentProof" && parsed.data.originator_pubkey !== event.pubkey) return { valid: false, reason: "ORIGINATOR_AUTHOR_MISMATCH" };
   if (parsed.data.event_type === "ClientValidationDecision" && parsed.data.client_pubkey !== event.pubkey) return { valid: false, reason: "CLIENT_AUTHOR_MISMATCH" };
   if (parsed.data.event_type === "NwcAuthorizationAttestation" && parsed.data.executor_pubkey !== event.pubkey) return { valid: false, reason: "EXECUTOR_AUTHOR_MISMATCH" };
   if (parsed.data.event_type === "PoolTransition" && parsed.data.actor_pubkey !== event.pubkey) return { valid: false, reason: "ACTOR_AUTHOR_MISMATCH" };

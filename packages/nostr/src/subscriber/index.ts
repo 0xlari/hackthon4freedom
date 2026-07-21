@@ -11,6 +11,17 @@ export type SubscriptionResult = Readonly<{
   unavailableRelays: readonly string[];
 }>;
 
+export function hasRelayObservationQuorum(
+  result: Pick<SubscriptionResult, "observedOn">,
+  eventId: string,
+  requiredAcks = 2,
+) {
+  if (!Number.isInteger(requiredAcks) || requiredAcks < 1) {
+    throw new Error("INVALID_RELAY_OBSERVATION_QUORUM");
+  }
+  return new Set(result.observedOn[eventId] ?? []).size >= requiredAcks;
+}
+
 export async function subscribeProtocolEvents(
   clients: readonly ProtocolRelayClient[],
   filter: RelayFilter,
