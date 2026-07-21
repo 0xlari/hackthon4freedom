@@ -7,7 +7,8 @@ import { currentLrpModePolicy } from "@/config/lrp-mode";
 import { assertJsonPayloadSize, assertSameOrigin, enforceRateLimit } from "@/lib/api-security";
 import { withSessionProfile } from "@/lib/app-session";
 import { preparePayerCommitmentProof, publishPayerCommitmentProof } from "@/services/lrp-payer-confirmation-service";
-import { evaluateAndPrepareValidationDecision, publishValidationDecision } from "@/services/lrp-validation-decision-service";
+import { evaluateAndPrepareValidationDecision, listOriginatorReceivables, publishValidationDecision } from "@/services/lrp-validation-decision-service";
+import { prepareNwcAuthorizationAttestation, publishNwcAuthorizationAttestation } from "@/services/lrp-nwc-attestation-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,10 +17,34 @@ const prepareSchema = z.object({ action: z.literal("prepare_payer_commitment"), 
 const publishSchema = z.object({ action: z.literal("publish_payer_commitment"), originatorEventId: z.string().uuid(), event: protocolSignedEventSchema.optional() }).strict();
 const validationSchema = z.object({ action: z.literal("evaluate_validation"), receivableId: z.string().uuid(), correlationId: z.string().uuid() }).strict();
 const publishValidationSchema = z.object({ action: z.literal("publish_validation"), originatorEventId: z.string().uuid(), event: protocolSignedEventSchema.optional() }).strict();
-const bodySchema = z.discriminatedUnion("action", [prepareSchema, publishSchema, validationSchema, publishValidationSchema]);
+const nwcSchema = z.object({ action: z.literal("prepare_nwc_attestation"), receivableId: z.string().uuid() }).strict();
+const publishNwcSchema = z.object({ action: z.literal("publish_nwc_attestation"), originatorEventId: z.string().uuid(), event: protocolSignedEventSchema.optional() }).strict();
+const bodySchema = z.discriminatedUnion("action", [prepareSchema, publishSchema, validationSchema, publishValidationSchema, nwcSchema, publishNwcSchema]);
 
 function relayClients() {
   return lrpRelaysFromEnvironment().map((relay) => new NostrToolsRelayClient(relay));
+}
+
+function assertConfiguredOriginator(pubkey: string) {
+  const configured = process.env.LRP_ORIGINATOR_PUBKEY?.trim().toLowerCase();
+  if (!configured) throw new Error("LRP_ORIGINATOR_PUBKEY_NOT_CONFIGURED");
+  if (configured !== pubkey) throw new Error("LRP_ORIGINATOR_AUTHORITY_MISMATCH");
+}
+
+export async function GET(request: Request) {
+  try {
+    const policy = currentLrpModePolicy();
+    if (policy.mode === "LEGACY") throw new Error("LRP_ORIGINATOR_API_DISABLED_IN_LEGACY");
+    const mode = policy.mode === "SHADOW" ? "SHADOW" : "LRP";
+    return await withSessionProfile(request, async ({ profile, db }) => {
+      if (!profile.nostrPubkey) throw new Error("LRP_ORIGINATOR_SIGNER_NOT_LINKED");
+      assertConfiguredOriginator(profile.nostrPubkey);
+      return NextResponse.json({ receivables: await listOriginatorReceivables(db, mode) }, { headers });
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "LRP_ORIGINATOR_LIST_FAILED";
+    return NextResponse.json({ error: message }, { status: message.includes("SESSION") || message.includes("SIGNER") ? 401 : 403, headers });
+  }
 }
 
 export async function POST(request: Request) {
@@ -32,6 +57,7 @@ export async function POST(request: Request) {
     const body = bodySchema.parse(await request.json());
     return await withSessionProfile(request, async ({ profile, db }) => {
       if (!profile.nostrPubkey) throw new Error("LRP_ORIGINATOR_SIGNER_NOT_LINKED");
+      assertConfiguredOriginator(profile.nostrPubkey);
       enforceRateLimit(`lrp:originator:${profile.userId}`, 20);
       if (body.action === "prepare_payer_commitment") {
         const prepared = await preparePayerCommitmentProof(db, {
@@ -52,6 +78,15 @@ export async function POST(request: Request) {
         });
         return NextResponse.json(prepared, { status: 201, headers });
       }
+      if (body.action === "prepare_nwc_attestation") {
+        const prepared = await prepareNwcAuthorizationAttestation(db, {
+          receivableId: body.receivableId,
+          mode: policy.mode === "SHADOW" ? "SHADOW" : "LRP",
+          originatorPubkey: profile.nostrPubkey,
+          now: new Date(),
+        });
+        return NextResponse.json(prepared, { headers });
+      }
       if (policy.mode !== "LRP") throw new Error("LRP_PUBLICATION_DISABLED");
       clients = relayClients();
       const published = body.action === "publish_validation"
@@ -62,7 +97,15 @@ export async function POST(request: Request) {
           clients,
           now: new Date(),
         })
-        : await publishPayerCommitmentProof(db, {
+        : body.action === "publish_nwc_attestation"
+          ? await publishNwcAuthorizationAttestation(db, {
+            originatorEventId: body.originatorEventId,
+            originatorPubkey: profile.nostrPubkey,
+            signedEvent: body.event,
+            clients,
+            now: new Date(),
+          })
+          : await publishPayerCommitmentProof(db, {
         originatorEventId: body.originatorEventId,
         originatorPubkey: profile.nostrPubkey,
         signedEvent: body.event,

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 
 import type { ProtocolRelayClient } from "@nostr/relays";
@@ -12,11 +12,19 @@ import { LRP_EVENT_VERSION } from "@protocol/version";
 import type { LrpOriginationMode } from "@/config/lrp-mode";
 import { validateReceivableAutomatically } from "@/db/repositories/receivable-repository";
 import * as schema from "@/db/schema";
-import { lrpOriginatorEvents, lrpReceivableOriginations, validations } from "@/db/schema";
+import { lrpOriginatorEvents, lrpReceivableOriginations, receivables, validations } from "@/db/schema";
 import { publishPreparedOriginatorEvent } from "@/services/lrp-originator-event-publication-service";
 
 type Database<THKT extends PgQueryResultHKT> = PgDatabase<THKT, typeof schema>;
 type MigratingMode = Exclude<LrpOriginationMode, "LEGACY">;
+
+export async function listOriginatorReceivables<THKT extends PgQueryResultHKT>(db: Database<THKT>, mode: MigratingMode) {
+  return db.select({ receivableId: receivables.id, status: receivables.status, dueAt: receivables.dueAt })
+    .from(receivables)
+    .innerJoin(lrpReceivableOriginations, eq(lrpReceivableOriginations.receivableId, receivables.id))
+    .where(and(eq(lrpReceivableOriginations.mode, mode), inArray(receivables.status, ["UNDER_VALIDATION", "APPROVED", "REJECTED"])))
+    .limit(50);
+}
 
 function publicResult(row: typeof lrpOriginatorEvents.$inferSelect) {
   return {

@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -8,14 +8,7 @@ import { protocolNwcAuthorizations } from "@/db/schema";
 import { encryptNwcSecret } from "@/integrations/nwc/secret-crypto";
 import type { NwcGateway } from "@/integrations/nwc/types";
 import { fingerprintNwcConnection, parseNwcUri } from "@/integrations/nwc/uri";
-
-function publicFingerprint(privateFingerprint: string) {
-  const key = process.env.NWC_CONNECTION_ENCRYPTION_KEY;
-  if (!key) throw new Error("NWC_ENCRYPTION_KEY_MISSING");
-  return createHmac("sha256", Buffer.from(key, "base64"))
-    .update(`lrp:nwc:0.1:${privateFingerprint}`)
-    .digest("hex");
-}
+import { publicNwcFingerprint } from "@/integrations/nwc/public-fingerprint";
 
 type Database<THKT extends PgQueryResultHKT> = PgDatabase<THKT, typeof schema>;
 
@@ -33,7 +26,7 @@ export async function prepareProtocolNwcAuthorization<THKT extends PgQueryResult
   const connection = parseNwcUri(input.nwcUri);
   const info = await gateway.getInfo(connection);
   if (!info.methods.includes("pay_invoice")) throw new Error("NWC_PAY_INVOICE_UNSUPPORTED");
-  const safeFingerprint = publicFingerprint(fingerprintNwcConnection(connection));
+  const safeFingerprint = publicNwcFingerprint(fingerprintNwcConnection(connection));
   const encryptedConnectionUri = encryptNwcSecret(input.nwcUri.trim());
   const [stored] = await db.insert(protocolNwcAuthorizations).values({
     id: randomUUID(), receivableEventId: input.receivableEventId, clientPubkey: input.clientPubkey,

@@ -55,7 +55,7 @@ describe("PostgreSQL financial constraints", () => {
       "select count(*)::int as count from drizzle.__drizzle_migrations",
     );
 
-    expect(result.rows[0]?.count).toBe(22);
+    expect(result.rows[0]?.count).toBe(24);
   });
 
   it("enforces one single-use payer authorization per receivable", async () => {

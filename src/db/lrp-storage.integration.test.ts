@@ -102,6 +102,7 @@ describe("LRP reconstructible PostgreSQL storage", () => {
         providerPubkey: signed.pubkey,
         commitmentsByOriginator: {},
         decisionsByClient: {},
+        nwcAttestationsByExecutor: {},
       }],
       pools: [],
       eventCount: 1,

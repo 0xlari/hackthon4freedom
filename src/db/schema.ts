@@ -762,6 +762,7 @@ export const nwcConnections = pgTable(
     walletServicePubkey: text("wallet_service_pubkey").notNull(),
     relayUrls: jsonb("relay_urls").notNull(),
     encryptedConnectionSecret: text("encrypted_connection_secret").notNull(),
+    encryptedConnectionMetadata: text("encrypted_connection_metadata"),
     connectionFingerprint: text("connection_fingerprint").notNull().unique(),
     supportedMethods: jsonb("supported_methods").notNull(),
     lastCheckedAt: timestamp("last_checked_at", { mode: "date", withTimezone: true }).notNull(),
