@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { PROTOCOL_KINDS, type ProtocolKind } from "../kinds";
 import { protocolContentSchemas, protocolSignedEventSchema, type ProtocolContent, type ProtocolSignedEvent } from "../schemas";
+import { LRP_EVENT_VERSION, LRP_IDENTIFIER } from "../version";
 import { assertPublicDataSafe } from "./privacy";
 
 const expectedType: Partial<Record<ProtocolKind, ProtocolContent["event_type"]>> = {
@@ -35,7 +36,7 @@ export function validateProtocolEvent(input: unknown): ProtocolEventValidation {
   if (!parsed.success) return { valid: false, reason: "INVALID_CONTENT_SCHEMA", issues: parsed.error.issues.map((issue) => issue.path.join(".")) };
   if (parsed.data.event_type !== expectedType[kind]) return { valid: false, reason: "PROTOCOL_KIND_TYPE_MISMATCH" };
   if (!event.tags.some((tag) => tag[0] === "alt" && Boolean(tag[1]))) return { valid: false, reason: "ALT_TAG_REQUIRED" };
-  if (!event.tags.some((tag) => tag[0] === "protocol" && tag[1] === "elas-recebem-hoje" && tag[2] === "0.1.0")) return { valid: false, reason: "PROTOCOL_TAG_REQUIRED" };
+  if (!event.tags.some((tag) => tag[0] === "protocol" && tag[1] === LRP_IDENTIFIER && tag[2] === LRP_EVENT_VERSION)) return { valid: false, reason: "PROTOCOL_TAG_REQUIRED" };
   if (parsed.data.event_type === "ReceivableCreated" && parsed.data.provider_pubkey !== event.pubkey) return { valid: false, reason: "PROVIDER_AUTHOR_MISMATCH" };
   if (parsed.data.event_type === "ClientValidationDecision" && parsed.data.client_pubkey !== event.pubkey) return { valid: false, reason: "CLIENT_AUTHOR_MISMATCH" };
   if (parsed.data.event_type === "NwcAuthorizationAttestation" && parsed.data.executor_pubkey !== event.pubkey) return { valid: false, reason: "EXECUTOR_AUTHOR_MISMATCH" };

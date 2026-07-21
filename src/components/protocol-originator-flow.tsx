@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { buildClientValidationDecision, buildNwcAuthorizationAttestation, buildPayerCommitmentProof } from "@protocol/builders";
 import type { ProtocolSignedEvent, ReceivableCreated } from "@protocol/schemas";
+import { LRP_EVENT_VERSION } from "@protocol/version";
 import { Nip07Signer, type Nip07Window } from "@nostr/signer";
 
 type RelayResult = { events: ProtocolSignedEvent[] };
@@ -62,13 +63,13 @@ export function ProtocolOriginatorFlow({ receivableEventId }: { receivableEventI
       }
       const privateConfirmationHash = await sha256(JSON.stringify({ receivable: receivable.event.id, terms: "originator-v0.1", acceptsBitcoin: true, nonce }));
       setStatus("Assinando a confirmação privada do cliente…");
-      const commitment = await publish(signer, buildPayerCommitmentProof({ protocol_version: "0.1.0", event_type: "PayerCommitmentProof", proof_id: crypto.randomUUID(), receivable_event_id: receivable.event.id, private_confirmation_hash: privateConfirmationHash, confirmed_at: now, terms_version: "originator-v0.1", accepts_bitcoin: true, has_nwc_authorization: decision === "APPROVED", originator_pubkey: pubkey }));
+      const commitment = await publish(signer, buildPayerCommitmentProof({ protocol_version: LRP_EVENT_VERSION, event_type: "PayerCommitmentProof", proof_id: crypto.randomUUID(), receivable_event_id: receivable.event.id, private_confirmation_hash: privateConfirmationHash, confirmed_at: now, terms_version: "lrp-originator/0.1", accepts_bitcoin: true, has_nwc_authorization: decision === "APPROVED", originator_pubkey: pubkey }));
       setStatus("Assinando a decisão independente…");
-      const validation = await publish(signer, buildClientValidationDecision({ protocol_version: "0.1.0", event_type: "ClientValidationDecision", decision_id: crypto.randomUUID(), receivable_event_id: receivable.event.id, decision, policy_version: "hackathon-v0.1", reason_codes: [String(data.get("reasonCode") || "TERMS_VERIFIED").toUpperCase().replace(/[^A-Z0-9_]/g, "_")], decided_at: now, client_pubkey: pubkey }));
+      const validation = await publish(signer, buildClientValidationDecision({ protocol_version: LRP_EVENT_VERSION, event_type: "ClientValidationDecision", decision_id: crypto.randomUUID(), receivable_event_id: receivable.event.id, decision, policy_version: "lrp-validation/0.1", reason_codes: [String(data.get("reasonCode") || "TERMS_VERIFIED").toUpperCase().replace(/[^A-Z0-9_]/g, "_")], decided_at: now, client_pubkey: pubkey }));
       if (decision !== "APPROVED") { setDone(true); setStatus(`Decisão ${decision} publicada. Nenhuma pool pode ser criada com esta decisão.`); return; }
       if (!nwc) throw new Error("NWC_PREPARATION_MISSING");
       setStatus("Assinando apenas o atestado público, sem URI ou segredo…");
-      const attestation = await publish(signer, buildNwcAuthorizationAttestation({ protocol_version: "0.1.0", event_type: "NwcAuthorizationAttestation", attestation_id: crypto.randomUUID(), receivable_event_id: receivable.event.id, authorization_state: "ACTIVE", pay_invoice_supported: true, max_authorized_msat: nwc.maxAmountMsat, due_at: Math.floor(new Date(nwc.dueAt).getTime() / 1000), expires_at: Math.floor(new Date(nwc.expiresAt).getTime() / 1000), single_use: true, safe_fingerprint: nwc.safeFingerprint, last_validated_at: Math.floor(new Date(nwc.lastValidatedAt).getTime() / 1000), executor_pubkey: pubkey }));
+      const attestation = await publish(signer, buildNwcAuthorizationAttestation({ protocol_version: LRP_EVENT_VERSION, event_type: "NwcAuthorizationAttestation", attestation_id: crypto.randomUUID(), receivable_event_id: receivable.event.id, authorization_state: "ACTIVE", pay_invoice_supported: true, max_authorized_msat: nwc.maxAmountMsat, due_at: Math.floor(new Date(nwc.dueAt).getTime() / 1000), expires_at: Math.floor(new Date(nwc.expiresAt).getTime() / 1000), single_use: true, safe_fingerprint: nwc.safeFingerprint, last_validated_at: Math.floor(new Date(nwc.lastValidatedAt).getTime() / 1000), executor_pubkey: pubkey }));
       await fetch("/api/protocol/nwc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "record_attestation", receivableEventId: receivable.event.id, attestationEventId: attestation.id }) });
       sessionStorage.setItem(`erh:originator:${receivable.event.id}`, JSON.stringify({ commitment: commitment.id, validation: validation.id, attestation: attestation.id }));
       setDone(true); setStatus("Aprovação e atestado NWC confirmados por pelo menos dois relays.");

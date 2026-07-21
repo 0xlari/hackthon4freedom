@@ -25,12 +25,12 @@ Entregar um MVP demonstrável de antecipação de recebível, com validação da
 - [x] 7. Integrar Nostr.
 - [x] 8. Auditar USDt Liquid e preparar mainnet controlada — resultado operacional `NO_GO`.
 - [ ] 9. Auditar, habilitar aporte mainnet mínimo e ensaiar demo.
-- [ ] 10. Implementar páginas públicas compartilháveis e distribuição comunitária opcional via Fedi.
+- [x] 10. Cancelar a integração com Fedi; o MVP utilizará o LRP exclusivamente no Elas Recebem Hoje.
 - [x] 11. Simplificar a experiência em painel único, remover páginas redundantes, adotar BTC-only e preparar compartilhamento por WhatsApp.
 - [ ] 12. Implementar carteira contratual autocustodial, DLC, oráculo e reembolso antes de qualquer aporte relevante.
 
 Detalhes e critérios estão em `docs/09-plano-de-implementacao.md`.
-O plano de execução específico da Etapa 10 está em `docs/18-fedi-comunidade-e-compartilhamento-de-pools.md`.
+A antiga proposta de integração com Fedi foi retirada do escopo. Páginas públicas e compartilhamento continuam pertencendo ao próprio Elas Recebem Hoje, sem dependência ou canal específico no Fedi.
 
 ## Dependências resolvidas na Etapa 0
 
@@ -67,9 +67,11 @@ O plano de execução específico da Etapa 10 está em `docs/18-fedi-comunidade-
 
 Atualizar este arquivo ao concluir cada etapa, com links para testes, decisões e limitações. Não avançar com testes financeiros quebrados sem registrar bloqueio e impacto.
 
-## Protocolo Nostr-native experimental v0.1
+## Lightning Receivables Protocol (LRP) — LRP v0.1
 
-Esta trilha substitui incrementalmente a fonte canônica dos estados públicos, sem remover o fluxo atual antes de existir reconstrução verificável. Cada item deve ser um commit separado e nenhum item habilita mainnet ou dinheiro real.
+Identificador técnico: `lrp`. Versão dos eventos: `lrp/0.1.0`.
+
+Esta trilha substituirá incrementalmente a fonte canônica dos estados públicos, sem remover o fluxo atual antes de existir reconstrução verificável. Cada item deve ser um commit separado e nenhum item habilita mainnet ou dinheiro real.
 
 - [x] 1. Especificação, ADRs e catálogo central de kinds.
 - [x] 2. Schemas puros e vetores canônicos.
@@ -77,7 +79,7 @@ Esta trilha substitui incrementalmente a fonte canônica dos estados públicos, 
 - [x] 4. Publisher/subscriber com três relays e quórum de dois ACKs positivos.
 - [x] 5. Builders, validators e prevenção de PII/segredos.
 - [x] 6. Reducers, grafo de referências e matriz de autoridades.
-- [x] 7. Cache apagável e comando `protocol:rebuild-cache`.
+- [x] 7. Cache apagável e comando `lrp:rebuild-cache`.
 - [x] 8. Criação e assinatura de recebível.
 - [x] 9. Decisão do cliente e atestado NWC público, mantendo credencial cifrada.
 - [x] 10. Assinatura e publicação da pool.
@@ -85,6 +87,10 @@ Esta trilha substitui incrementalmente a fonte canônica dos estados públicos, 
 - [x] 12. E2E desktop/mobile, reconstrução em outro navegador e documentação final.
 
 Fontes normativas: ADR-041, ADR-042 e `docs/protocol/`. Os critérios finais exigem pool confirmada por 2 de 3 relays, reconstrução sem tabela canônica, NWC privada, cache reproduzível e suíte completa verde.
+
+### Próxima etapa — ainda não iniciada
+
+Migrar gradualmente a plataforma existente para consumir o LRP como fonte de verdade dos estados públicos. Antes do primeiro corte, apresentar o plano exato de migração, consumidores afetados, compatibilidade, rollback e critérios de remoção das regras operacionais antigas. O fluxo atual permanece ativo até essa aprovação; esta etapa de nomenclatura não executa a migração.
 
 ### Registro de 2026-07-14
 

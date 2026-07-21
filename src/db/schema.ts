@@ -764,8 +764,8 @@ export const nwcConnections = pgTable(
   ],
 );
 
-// Private operational storage for the Nostr-native v0.1 originator. Public
-// protocol state is reconstructed from relays and never from this table.
+// Private operational storage for the LRP v0.1 originator. Public LRP state is
+// reconstructed from relays and never from this table.
 export const protocolNwcAuthorizations = pgTable(
   "protocol_nwc_authorizations",
   {

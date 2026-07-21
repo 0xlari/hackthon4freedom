@@ -1,5 +1,5 @@
 /**
- * Experimental application-specific kinds for protocol version 0.1.0.
+ * Experimental application-specific kinds for LRP event version lrp/0.1.0.
  *
  * These numbers are not an official NIP allocation. Consumers must validate
  * the protocol version and logical event type in addition to the numeric kind.

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { PROTOCOL_KINDS } from "../kinds";
-import { PROTOCOL_VERSION } from "../version";
+import { LRP_EVENT_VERSION } from "../version";
 import {
   basisPointsSchema,
   countryCodeSchema,
@@ -16,7 +16,7 @@ import {
 } from "./common";
 
 const base = <T extends string>(eventType: T) => ({
-  protocol_version: z.literal(PROTOCOL_VERSION),
+  protocol_version: z.literal(LRP_EVENT_VERSION),
   event_type: z.literal(eventType),
 });
 

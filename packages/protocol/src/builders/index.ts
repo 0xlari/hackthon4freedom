@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { canonicalJson, type JsonValue } from "../canonical-json";
 import { PROTOCOL_KINDS, type ProtocolKind } from "../kinds";
+import { LRP_EVENT_VERSION, LRP_IDENTIFIER, LRP_NAME } from "../version";
 import {
   protocolContentSchemas,
   type ClientValidationDecision,
@@ -26,7 +27,7 @@ const kindByType = {
 } as const;
 
 const altByType = {
-  ProtocolDefinition: "Definição experimental do protocolo Elas Recebem Hoje",
+  ProtocolDefinition: `Definição experimental do ${LRP_NAME}`,
   ReceivableCreated: "Recebível internacional experimental",
   PayerCommitmentProof: "Prova pública de compromisso do pagador",
   ClientValidationDecision: "Decisão independente de validação",
@@ -74,7 +75,7 @@ export function buildProtocolEvent(kind: ProtocolKind, input: ProtocolContent): 
     created_at: createdAt,
     tags: [
       ["alt", altByType[content.event_type]],
-      ["protocol", "elas-recebem-hoje", content.protocol_version],
+      ["protocol", LRP_IDENTIFIER, LRP_EVENT_VERSION],
       ["t", content.event_type],
       ...referenceTags(content),
     ],

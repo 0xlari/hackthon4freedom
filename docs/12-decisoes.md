@@ -249,9 +249,9 @@
 ## ADR-034 — Fedi opcional como canal comunitário e carteira interoperável
 
 - **Data:** 2026-07-17
-- **Status:** aprovada como plano de execução; implementação não iniciada
-- **Decisão:** o Fedi será um canal opcional de comunidade, descoberta e distribuição de pools aprovadas, além de uma das carteiras Lightning capazes de pagar invoices oficiais. O Fedi não valida recebíveis, não autoriza ações financeiras, não mantém o ledger, não calcula participações e não se torna dependência para abertura, financiamento, liquidação ou consulta de pools. O backend do Elas Recebem Hoje permanece como única fonte de verdade.
-- **Consequências:** a Etapa 10 criará páginas públicas sanitizadas com IDs opacos, compartilhamento por Fedi e outros canais e aporte por invoice compatível com qualquer carteira Lightning. Mensagens comunitárias nunca movimentam fundos ou alteram estados; integrações futuras mais profundas usam adapter e feature flag. Escopo, ordem, riscos, requisitos e aceite estão em `docs/18-fedi-comunidade-e-compartilhamento-de-pools.md`. Esta decisão não habilita mainnet nem autoriza movimentação financeira.
+- **Status:** cancelada pela ADR-044; implementação não iniciada
+- **Decisão histórica:** foi considerada uma integração opcional com Fedi para comunidade, descoberta e distribuição de pools.
+- **Consequências:** a proposta foi retirada integralmente antes de ser implementada. O documento de execução associado foi removido e o Fedi não integra o escopo atual nem o roadmap aprovado do MVP.
 
 ## ADR-035 — fluxo único, pools somente BTC e aportes não custodiais por DLC
 
@@ -291,9 +291,9 @@
 ## ADR-041 — eventos Nostr como fonte canônica do estado público
 
 - **Data:** 2026-07-20
-- **Status:** aprovada para implementação experimental v0.1; sem ativação financeira
+- **Status:** aprovada para implementação experimental da LRP v0.1; sem ativação financeira
 - **Contexto:** recebíveis e pools públicos hoje derivam de tabelas ou estado demonstrativo local, impedindo verificação e reconstrução independentes. A nova versão requer autoria portável, decisões de validação por cliente e projeções reproduzíveis.
-- **Decisão:** a pubkey e a assinatura Nostr determinam autoria dos eventos do protocolo. Eventos válidos e seu grafo tornam-se a fonte canônica do estado público; PostgreSQL permanece permitido para dados privados, sessões, NWC cifrado, scheduler, auditoria e cache reconstruível. LNURL-auth continua como sessão interna vinculável a uma pubkey, mas não assina eventos. Os kinds 8100–8114 são experimentais e versionados; somente sete tipos descritos em `docs/protocol/` serão aceitos em `0.1.0`. Decisões `APPROVED`, `REJECTED` e `NEEDS_INFORMATION` pertencem ao cliente que as assinou, permitindo que outro cliente avalie o mesmo recebível.
+- **Decisão:** a pubkey e a assinatura Nostr determinam autoria dos eventos do Lightning Receivables Protocol (LRP). Eventos válidos e seu grafo tornam-se a fonte canônica do estado público; PostgreSQL permanece permitido para dados privados, sessões, NWC cifrado, scheduler, auditoria e cache reconstruível. LNURL-auth continua como sessão interna vinculável a uma pubkey, mas não assina eventos. Os kinds 8100–8114 são experimentais e versionados; somente sete tipos descritos em `docs/protocol/` serão aceitos na versão de eventos `lrp/0.1.0`. Decisões `APPROVED`, `REJECTED` e `NEEDS_INFORMATION` pertencem ao cliente que as assinou, permitindo que outro cliente avalie o mesmo recebível.
 - **Consequências:** esta decisão substitui, somente no protocolo experimental, a exclusividade de validação das ADR-002/025, a restrição de Nostr apenas à reputação das ADR-032/033 e a opcionalidade de NWC da ADR-038 para criação de pool. A experiência NWC da ADR-040 continua reutilizável. Nenhuma decisão habilita mainnet, pagamento, aporte, DLC ou publicação de dados privados. Cache, UI e banco serão migrados incrementalmente e o fluxo atual permanece até a projeção Nostr ser validada.
 
 ## ADR-042 — concentração temporária de papéis no cliente originador
@@ -301,7 +301,27 @@
 - **Data:** 2026-07-20
 - **Status:** limitação aceita exclusivamente para a versão experimental do hackathon
 - **Contexto:** separar imediatamente todos os agentes impediria a entrega da vertical verificável no prazo, mas ocultar a concentração criaria uma falsa promessa de descentralização.
-- **Decisão:** na v0.1, o cliente originador concentra validação, armazenamento NWC cifrado, contraparte do futuro DLC, executor NWC, carteira operacional, oráculo e coordenação da liquidação. Seus eventos são assinados, limitados por autoridade e auditáveis; segredos permanecem privados; pagamentos, DLC e mainnet continuam desabilitados. A interface e `PoolCreated` devem declarar essa concentração.
+- **Decisão:** na LRP v0.1, o cliente originador concentra validação, armazenamento NWC cifrado, contraparte do futuro DLC, executor NWC, carteira operacional, oráculo e coordenação da liquidação. Seus eventos são assinados, limitados por autoridade e auditáveis; segredos permanecem privados; pagamentos, DLC e mainnet continuam desabilitados. A interface e `PoolCreated` devem declarar essa concentração.
 - **Riscos e controles:** censura, indisponibilidade, conflito de interesse e contraparte única são riscos conhecidos. Controles mínimos são eventos verificáveis, três relays com quórum 2, dados minimizados, NWC revogável, idempotência, bloqueio em resultado desconhecido, fakes sem fundos e logs sanitizados.
 - **Plano obrigatório:** separar cliente, validador, contraparte, executor, carteira, oráculo e árbitro; permitir escolha de executor e agentes do pagador; usar oráculos 2 de 3; remover contraparte única; garantir continuidade sem o originador; e descentralizar disputas, conforme `docs/protocol/10-decentralization-roadmap.md`.
 - **Critério de saída:** a centralização só é removida quando nenhuma entidade isolada puder validar e executar a obrigação, existir substituição de executor, a operação continuar sem o originador, fatos críticos exigirem quórum independente e disputas tiverem procedimento fora dele, todos demonstrados por testes interoperáveis.
+
+## ADR-043 — nomenclatura canônica e próximo corte do LRP
+
+- **Data:** 2026-07-21
+- **Status:** nomenclatura aprovada; migração da plataforma não iniciada
+- **Decisão:** o protocolo passa a se chamar **Lightning Receivables Protocol**, sigla **LRP**, release **LRP v0.1**, identificador técnico `lrp` e versão dos eventos `lrp/0.1.0`. Nomes temporários que o vinculavam à marca da plataforma ou apenas à tecnologia de transporte deixam de identificar o protocolo.
+- **Integração atual:** `packages/protocol` continua isolando schemas, builders, validadores, autoridades e reducers públicos; `packages/nostr` fornece signer, transporte e reconstrução. As rotas experimentais apenas demonstram essa integração e não substituem o domínio operacional atual.
+- **Duplicação:** regras públicas do LRP e regras privadas/operacionais atuais permanecem separadas enquanto seus estados e autoridades ainda não são equivalentes. Nenhuma fórmula financeira ou máquina de estados operacional foi copiada nesta etapa.
+- **Próxima etapa:** apresentar e aprovar um plano de corte para migrar gradualmente os consumidores da plataforma existente ao LRP como fonte de verdade dos estados públicos. Não remover regras antigas nem promover o LRP a fonte canônica da plataforma antes desse plano, dos testes de compatibilidade e de uma estratégia de rollback.
+- **Guardrails:** esta decisão não habilita mainnet, pagamentos, aportes, DLC, custódia, saques ou publicação de dados privados.
+
+## ADR-044 — LRP exclusivo no MVP Elas Recebem Hoje
+
+- **Data:** 2026-07-21
+- **Status:** confirmada pela fundadora
+- **Contexto:** a proposta anterior avaliava usar o Fedi como canal comunitário, de descoberta e de acesso a pools. Essa integração aumentaria o escopo sem ser necessária para validar o produto ou o protocolo.
+- **Decisão:** o Fedi não será implementado. No MVP, o Lightning Receivables Protocol será utilizado exclusivamente pelo produto Elas Recebem Hoje. Publicação, leitura, reconstrução e experiência do LRP permanecem dentro da aplicação e de seus pacotes internos, usando Nostr apenas como transporte de eventos conforme a especificação.
+- **Consequências:** não haverá comunidade Fedi, mini app, botão específico, publicação automatizada, identidade, reputação ou fluxo de pagamento dependente do Fedi. Links públicos e compartilhamento permanecem funcionalidades próprias do Elas Recebem Hoje e podem usar canais genéricos, sem integração dedicada. A compatibilidade Lightning continua definida pelo protocolo e pelas integrações aprovadas da plataforma, não por uma carteira específica.
+- **Escopo futuro:** qualquer reconsideração do Fedi exige nova decisão explícita e não faz parte da migração da plataforma para consumir o LRP.
+- **Guardrails:** esta decisão não inicia a migração para o LRP, não habilita mainnet e não altera regras financeiras.

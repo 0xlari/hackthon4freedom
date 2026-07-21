@@ -35,7 +35,7 @@ async function transition(pool: ProtocolSignedEvent, signer: FakeSigner, input: 
   return signer.signEvent(buildProtocolEvent(vector.kind as ProtocolKind, content));
 }
 
-describe("protocol reducers and authorities", () => {
+describe("LRP reducers and authorities", () => {
   it("reconstructs the same pool from shuffled events without a database", async () => {
     const data = await fixture();
     const funding = await transition(data.pool, provider, { previous_event_id: data.pool.id, previous_state: "PUBLISHED", new_state: "FUNDING", funded_bps: 0 });

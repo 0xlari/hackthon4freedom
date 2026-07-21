@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { reducePoolState } from "@protocol/reducers";
 import type { PoolTransition, ProtocolSignedEvent } from "@protocol/schemas";
-import { NostrToolsRelayClient, protocolRelaysFromEnvironment } from "@nostr/relays";
+import { NostrToolsRelayClient, lrpRelaysFromEnvironment } from "@nostr/relays";
 import { subscribeProtocolEvents } from "@nostr/subscriber";
 import { verifyProtocolEventForSubscription } from "@nostr/verification";
 
@@ -11,7 +11,7 @@ const headers = { "Cache-Control": "public, max-age=15, stale-while-revalidate=3
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params; if (!/^[a-f0-9]{64}$/.test(id)) return NextResponse.json({ error: "POOL_EVENT_ID_INVALID" }, { status: 400, headers });
-  const clients = protocolRelaysFromEnvironment().map((relay) => new NostrToolsRelayClient(relay));
+  const clients = lrpRelaysFromEnvironment().map((relay) => new NostrToolsRelayClient(relay));
   try {
     const rootResult = await subscribeProtocolEvents(clients, { eventIds: [id], limit: 10 }, verifyProtocolEventForSubscription); const root = rootResult.events.find((item) => item.id === id);
     if (!root) return NextResponse.json({ error: "POOL_NOT_FOUND" }, { status: 404, headers });

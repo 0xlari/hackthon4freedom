@@ -4,7 +4,7 @@ import { canonicalJson } from "../canonical-json";
 import { protocolContentSchemas } from "./events";
 import { validContentVectors } from "../test-vectors/valid";
 
-describe("protocol event schemas", () => {
+describe("LRP event schemas", () => {
   it.each(validContentVectors)("accepts $content.event_type", ({ kind, content }) => {
     const schema = protocolContentSchemas[kind as keyof typeof protocolContentSchemas];
     expect(schema).toBeDefined();

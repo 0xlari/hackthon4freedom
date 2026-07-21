@@ -1,11 +1,18 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { finalizeEvent, generateSecretKey, getPublicKey } from "nostr-tools";
 
 import { ProtocolOriginatorFlow } from "./protocol-originator-flow";
 
 const eventId = "a".repeat(64); const secretKey = generateSecretKey(); const pubkey = getPublicKey(secretKey);
 describe("ProtocolOriginatorFlow", () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    Reflect.deleteProperty(window, "nostr");
+  });
+
   beforeEach(() => {
     Object.defineProperty(window, "nostr", { configurable: true, value: { getPublicKey: vi.fn().mockResolvedValue(pubkey), signEvent: vi.fn(async (event) => finalizeEvent(event, secretKey)) } });
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

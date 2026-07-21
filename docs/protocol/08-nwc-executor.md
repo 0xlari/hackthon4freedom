@@ -1,8 +1,8 @@
-# Executor NWC v0.1
+# Executor NWC da LRP v0.1
 
 ## Papel
 
-NWC é uma autorização de pagamento revogável, não login, carteira Nostr nem garantia de saldo. Para criar uma pool v0.1, o cliente originador precisa validar suporte a `pay_invoice`, cifrar a conexão e publicar somente um atestado sanitizado.
+NWC é uma autorização de pagamento revogável, não login, carteira Nostr nem garantia de saldo. Para criar uma pool na LRP v0.1, o cliente originador precisa validar suporte a `pay_invoice`, cifrar a conexão e publicar somente um atestado sanitizado.
 
 ## Dados privados
 

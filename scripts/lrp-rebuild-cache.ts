@@ -2,11 +2,11 @@ import { resolve } from "node:path";
 
 import { V0_1_IMPLEMENTED_KIND_NAMES, PROTOCOL_KINDS } from "../packages/protocol/src/kinds";
 import { FileProtocolEventCache, rebuildProtocolCache } from "../packages/nostr/src/event-cache";
-import { NostrToolsRelayClient, protocolRelaysFromEnvironment } from "../packages/nostr/src/relays";
+import { lrpRelaysFromEnvironment, NostrToolsRelayClient } from "../packages/nostr/src/relays";
 
-const relays = protocolRelaysFromEnvironment();
+const relays = lrpRelaysFromEnvironment();
 const clients = relays.map((relay) => new NostrToolsRelayClient(relay));
-const cachePath = resolve(process.env.PROTOCOL_CACHE_FILE ?? ".next/cache/nostr-protocol-events.json");
+const cachePath = resolve(process.env.LRP_CACHE_FILE ?? ".next/cache/nostr-lrp-events.json");
 
 try {
   const report = await rebuildProtocolCache({

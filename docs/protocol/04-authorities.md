@@ -1,6 +1,6 @@
 # Matriz de autoridades
 
-| Ação | Autoridade v0.1 | Condições |
+| Ação | Autoridade na LRP v0.1 | Condições |
 |---|---|---|
 | Criar recebível | prestadora | assinatura corresponde à pubkey declarada |
 | Decidir validação | cliente originador | decisão vale somente sob sua pubkey e política |
@@ -9,7 +9,7 @@
 | Cancelar livremente | prestadora | nenhum aporte financiado |
 | Solicitar reembolso | prestadora/cliente | com aporte, antes de `DISBURSED` |
 | Aceitar parcial | prestadora | entre 5000 e 9999 bps, dentro de 24 horas |
-| Confirmar fato financeiro | cliente originador | apenas papel transitório v0.1 |
+| Confirmar fato financeiro | cliente originador | apenas papel transitório na LRP v0.1 |
 
 ## Regras determinísticas
 

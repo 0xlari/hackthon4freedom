@@ -4,7 +4,7 @@ import { finalizeEvent } from "nostr-tools/pure";
 import { FakeSigner } from "../../../nostr/src/signer";
 import { buildProtocolEvent } from "../builders";
 import type { ProtocolKind } from "../kinds";
-import type { ProtocolContent, ProtocolSignedEvent } from "../schemas";
+import type { ProtocolContent } from "../schemas";
 import { validContentVectors } from "../test-vectors/valid";
 import { validateProtocolEvent } from "./event";
 import { validatePoolCreationGraph } from "./pool-creation";
@@ -23,7 +23,7 @@ async function signVector(index: number, signer: FakeSigner, overrides: Record<s
   return signer.signEvent(buildProtocolEvent(vector.kind as ProtocolKind, content));
 }
 
-describe("protocol builders and validators", () => {
+describe("LRP builders and validators", () => {
   it("builds, signs and validates every implemented event", async () => {
     for (let index = 0; index < validContentVectors.length; index += 1) {
       const signer = [2, 3, 4].includes(index) ? originator : provider;

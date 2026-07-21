@@ -12,7 +12,7 @@
 
 Um relay isolado, o cache local e o banco da plataforma não podem inventar autoria ou estado. Assinaturas, hashes canônicos, regras de autoridade e referências são verificados localmente.
 
-## Confianças residuais da v0.1
+## Confianças residuais da LRP v0.1
 
 O cliente originador pode omitir eventos, reter operação, indisponibilizar o scheduler ou atestar fatos incorretos sob sua própria pubkey. A assinatura torna a autoria auditável, mas não prova que a afirmação corresponde ao mundo externo. O NWC continua revogável e pode falhar por saldo, quota, rota ou indisponibilidade.
 

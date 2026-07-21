@@ -1,8 +1,8 @@
-# Kinds experimentais
+# Kinds experimentais da LRP
 
 A definição executável está em `packages/protocol/src/kinds.ts`. O número sozinho não basta: todo consumidor deve validar `protocol_version` e `event_type`.
 
-| Kind | Nome | v0.1 |
+| Kind | Nome | LRP v0.1 |
 |---:|---|---|
 | 8100 | `PROTOCOL_DEFINITION` | implementar |
 | 8101 | `RECEIVABLE_CREATED` | implementar |
@@ -20,4 +20,4 @@ A definição executável está em `packages/protocol/src/kinds.ts`. O número s
 | 8113 | `POOL_REFERRAL` | reservado |
 | 8114 | `DISPUTE_EVENT` | reservado |
 
-Kinds reservados não possuem schema aceito em `0.1.0` e devem ser ignorados pelo reducer desta versão.
+Kinds reservados não possuem schema aceito na versão de eventos `lrp/0.1.0` e devem ser ignorados pelo reducer desta versão.

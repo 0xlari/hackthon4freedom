@@ -4,7 +4,7 @@ Os schemas Zod e vetores canônicos serão entregues no segundo commit. Esta pá
 
 ## Envelope comum
 
-Todos os eventos contêm `protocol_version: "0.1.0"`, `event_type`, identificador opaco aleatório, timestamp Unix em segundos, tag `alt` legível, referências explícitas e somente dados públicos mínimos. Inteiros monetários usam strings decimais sem sinal, expoente ou casas decimais.
+Todos os eventos contêm `protocol_version: "lrp/0.1.0"`, `event_type`, identificador opaco aleatório, timestamp Unix em segundos, tag `alt` legível, referências explícitas e somente dados públicos mínimos. A tag técnica é `["protocol", "lrp", "lrp/0.1.0"]`. Inteiros monetários usam strings decimais sem sinal, expoente ou casas decimais.
 
 ## Eventos
 
@@ -22,4 +22,4 @@ São proibidos nome civil, CPF, contato, endereço, contrato, documento, conteú
 
 ## Compatibilidade
 
-Durante a série `0.1.x`, leitores aceitam apenas a mesma minor version e podem ignorar campos opcionais desconhecidos. Campo obrigatório desconhecido, major/minor incompatível ou tipo lógico divergente rejeita o evento.
+Durante a série `lrp/0.1.x`, leitores aceitam apenas a mesma minor version e podem ignorar campos opcionais desconhecidos. Campo obrigatório desconhecido, major/minor incompatível ou tipo lógico divergente rejeita o evento.

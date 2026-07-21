@@ -2,7 +2,7 @@
 
 ## Limitação deliberada do hackathon
 
-Na v0.1, o cliente originador concentra validação, armazenamento NWC, contraparte do futuro DLC, executor NWC, carteira operacional, oráculo e coordenação da liquidação. Isso reduz o tempo de integração, mas cria censura, indisponibilidade, conflito de interesse e contraparte única.
+Na LRP v0.1, o cliente originador concentra validação, armazenamento NWC, contraparte do futuro DLC, executor NWC, carteira operacional, oráculo e coordenação da liquidação. Isso reduz o tempo de integração, mas cria censura, indisponibilidade, conflito de interesse e contraparte única.
 
 ## Separação obrigatória
 

@@ -1,11 +1,18 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FakeSigner } from "@nostr/signer";
 import type { ProtocolUnsignedEvent } from "@protocol/schemas";
 import { ProtocolReceivableFlow } from "./protocol-receivable-flow";
 
 describe("ProtocolReceivableFlow", () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    Reflect.deleteProperty(window, "nostr");
+  });
+
   it("links a NIP-07 signer and publishes a signed receivable", async () => {
     const fake = new FakeSigner(new Uint8Array(32).fill(41)); const pubkey = await fake.getPublicKey();
     Object.defineProperty(window, "nostr", { configurable: true, value: { getPublicKey: () => fake.getPublicKey(), signEvent: (event: ProtocolUnsignedEvent) => fake.signEvent(event) } });

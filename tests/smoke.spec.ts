@@ -63,7 +63,14 @@ test("layout does not overflow the viewport", async ({ page }) => {
 
 test("hackathon demo completes receivable approval and contribution", async ({ page }) => {
   await page.route("**/api/auth/session", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ authenticated: true }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        authenticated: true,
+        profile: { id: "e2e-wallet-profile", label: "Carteira E2E" },
+      }),
+    });
   });
 
   await page.goto("/recebivel");

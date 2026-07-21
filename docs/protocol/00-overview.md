@@ -1,8 +1,8 @@
-# Protocolo Lightning Recible Protocol — v0.1
+# Lightning Receivables Protocol (LRP) — LRP v0.1
 
 ## Status
 
-Especificação experimental `0.1.0`. Os kinds 8100–8114 são privados desta experiência e não representam um NIP oficial. Esta versão não autoriza mainnet, DLC real, pagamentos, aportes ou liquidação.
+Especificação experimental **LRP v0.1**, identificador técnico `lrp` e versão dos eventos `lrp/0.1.0`. Os kinds 8100–8114 são privados desta experiência e não representam um NIP oficial. Esta versão não autoriza mainnet, DLC real, pagamentos, aportes ou liquidação.
 
 ## Objetivo
 
@@ -15,7 +15,7 @@ Representar o estado público mínimo de recebíveis e pools como um grafo de ev
 - A assinatura Nostr determina a autoria; uma sessão LNURL-auth apenas controla acesso interno e pode ser vinculada a uma pubkey.
 - Ordem de chegada, maior `created_at` ou evento mais recente, isoladamente, nunca determinam estado.
 
-## Escopo v0.1
+## Escopo da LRP v0.1
 
 Esta vertical implementará `ProtocolDefinition`, `ReceivableCreated`, `PayerCommitmentProof`, `ClientValidationDecision`, `NwcAuthorizationAttestation`, `PoolCreated` e `PoolTransition`. Os demais kinds ficam reservados, sem schema aceito nesta versão.
 

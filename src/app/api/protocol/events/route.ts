@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { protocolSignedEventSchema } from "@protocol/schemas";
 import { validatePoolCreationGraph, validateProtocolEvent } from "@protocol/validators";
-import { NostrToolsRelayClient, protocolRelaysFromEnvironment } from "@nostr/relays";
+import { NostrToolsRelayClient, lrpRelaysFromEnvironment } from "@nostr/relays";
 import { publishToRelaySet } from "@nostr/publisher";
 import { subscribeProtocolEvents } from "@nostr/subscriber";
 import { verifyProtocolEventForSubscription } from "@nostr/verification";
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 const privateHeaders = { "Cache-Control": "no-store, private", "Referrer-Policy": "no-referrer" };
 const publicHeaders = { "Cache-Control": "public, max-age=15, stale-while-revalidate=30" };
 
-function clients() { return protocolRelaysFromEnvironment().map((relay) => new NostrToolsRelayClient(relay)); }
+function clients() { return lrpRelaysFromEnvironment().map((relay) => new NostrToolsRelayClient(relay)); }
 function close(items: readonly NostrToolsRelayClient[]) { items.forEach((client) => client.close()); }
 
 export async function POST(request: Request) {

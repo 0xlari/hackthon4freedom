@@ -5,9 +5,9 @@ import {
   V0_1_IMPLEMENTED_KIND_NAMES,
   V0_1_RESERVED_KIND_NAMES,
 } from "./kinds";
-import { PROTOCOL_IS_EXPERIMENTAL, PROTOCOL_VERSION } from "./version";
+import { LRP_ACRONYM, LRP_EVENT_VERSION, LRP_IDENTIFIER, LRP_IS_EXPERIMENTAL, LRP_NAME, LRP_RELEASE } from "./version";
 
-describe("experimental protocol catalog", () => {
+describe("experimental LRP catalog", () => {
   it("keeps the approved kind values exact and unique", () => {
     expect(PROTOCOL_KINDS).toEqual({
       PROTOCOL_DEFINITION: 8100,
@@ -35,8 +35,12 @@ describe("experimental protocol catalog", () => {
     expect(new Set([...V0_1_IMPLEMENTED_KIND_NAMES, ...V0_1_RESERVED_KIND_NAMES])).toHaveLength(15);
   });
 
-  it("marks version 0.1.0 as experimental", () => {
-    expect(PROTOCOL_VERSION).toBe("0.1.0");
-    expect(PROTOCOL_IS_EXPERIMENTAL).toBe(true);
+  it("exposes the canonical LRP v0.1 identity", () => {
+    expect(LRP_NAME).toBe("Lightning Receivables Protocol");
+    expect(LRP_ACRONYM).toBe("LRP");
+    expect(LRP_RELEASE).toBe("LRP v0.1");
+    expect(LRP_IDENTIFIER).toBe("lrp");
+    expect(LRP_EVENT_VERSION).toBe("lrp/0.1.0");
+    expect(LRP_IS_EXPERIMENTAL).toBe(true);
   });
 });

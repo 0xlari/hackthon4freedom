@@ -2,7 +2,7 @@
 
 ## Estado desta versão
 
-DLC real não faz parte da vertical v0.1. As interfaces, o schema público mínimo da prova de funding e o fake determinístico estão implementados em `packages/protocol/src/dlc`. Nenhum aporte on-chain, funding transaction ou settlement é criado.
+DLC real não faz parte da LRP v0.1. As interfaces, o schema público mínimo da prova de funding e o fake determinístico estão implementados em `packages/protocol/src/dlc`. Nenhum aporte on-chain, funding transaction ou settlement é criado.
 
 ## Interface futura
 
