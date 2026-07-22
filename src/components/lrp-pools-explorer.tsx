@@ -9,19 +9,33 @@ import type { PublicPool } from "@/data/public-pools";
 import type { LrpPoolPublicView, LrpPoolReadIssue, LrpPoolReadResult } from "@/services/lrp-pool-read-service";
 
 const issueLabels: Record<LrpPoolReadIssue, string> = {
-  PROJECTION_NOT_FOUND: "A projeção pública desta pool ainda não foi criada.",
-  PROJECTION_STALE: "A projeção está atrasada e aguarda uma nova reconstrução.",
-  CANONICAL_EVENT_MISSING: "O evento canônico não está no cache local.",
-  RELAY_QUORUM_INSUFFICIENT: "A pool foi observada por apenas um relay.",
-  INVALID_EVENT_GRAPH: "O grafo público da pool é inválido.",
-  REDUCER_CONFLICT: "O reducer rejeitou um conflito no grafo da pool.",
-  DATABASE_UNAVAILABLE: "O banco de projeções está temporariamente indisponível.",
-  REBUILD_IN_PROGRESS: "A reconstrução das projeções está em andamento.",
+  PROJECTION_NOT_FOUND: "Esta pool não foi encontrada nos registros públicos.",
+  PROJECTION_STALE: "As informações desta pool aguardam atualização.",
+  CANONICAL_EVENT_MISSING: "O registro público confirmado não está disponível agora.",
+  RELAY_QUORUM_INSUFFICIENT: "A publicação ainda aguarda confirmações suficientes.",
+  INVALID_EVENT_GRAPH: "As informações públicas desta pool não puderam ser verificadas.",
+  REDUCER_CONFLICT: "Foram encontradas informações públicas conflitantes para esta pool.",
+  DATABASE_UNAVAILABLE: "Não foi possível consultar as pools agora.",
+  REBUILD_IN_PROGRESS: "O histórico público está sendo atualizado.",
 };
 
 const formatSats = (value: string) => `${Number(value).toLocaleString("pt-BR")} sats`;
 const formatDate = (value: number) => new Intl.DateTimeFormat("pt-BR").format(new Date(value * 1_000));
 const formatBps = (value: number) => `${(value / 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
+const poolStateLabels: Record<string, string> = {
+  PUBLISHED: "Aberta para consulta",
+  OPEN: "Aberta",
+  PARTIALLY_FUNDED: "Parcialmente financiada",
+  FULLY_FUNDED: "Financiamento completo",
+  PARTIAL_ACCEPTANCE_PENDING: "Aguardando aceite parcial",
+  PARTIAL_ACCEPTED: "Financiamento parcial aceito",
+  CANCELLED: "Cancelada",
+  REFUND_REQUIRED: "Reembolso necessário",
+  DISBURSED: "Antecipação liberada",
+  SETTLED: "Concluída",
+  DEFAULTED: "Pagamento em atraso",
+  DISPUTED: "Em contestação",
+};
 
 export function LrpPoolOperationalState({ issues }: { issues: readonly LrpPoolReadIssue[] }) {
   if (!issues.length) return null;
@@ -31,12 +45,12 @@ export function LrpPoolOperationalState({ issues }: { issues: readonly LrpPoolRe
 export function LrpPoolCard({ pool }: { pool: LrpPoolPublicView }) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const poolUrl = `${siteUrl}/pools/${pool.poolId}`;
-  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`Ajude esta pool BTC a fechar. Veja prazo, riscos e verificação LRP: ${poolUrl}`)}`;
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`Ajude esta pool BTC a fechar. Veja prazo, riscos e informações verificadas: ${poolUrl}`)}`;
   return <article className="pool-card" data-source="LRP">
-    <div className="pool-card__topline"><span className="tag tag--soft"><Bitcoin aria-hidden="true" size={15} /> Pool BTC · LRP</span>{pool.verified ? <BadgeCheck aria-label="Verificada por quórum" size={20} /> : <AlertTriangle aria-label="Verificação pendente" size={20} />}</div>
+    <div className="pool-card__topline"><span className="tag tag--soft"><Bitcoin aria-hidden="true" size={15} /> Pool BTC verificada</span>{pool.verified ? <BadgeCheck aria-label="Publicação confirmada" size={20} /> : <AlertTriangle aria-label="Verificação pendente" size={20} />}</div>
     <h3>{pool.title}</h3><p>{pool.providerPseudonym}</p><div className="pool-card__amount">{formatSats(pool.targetSats)}</div>
     <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pool.progressBps / 100} aria-label={`${pool.progressBps / 100}% financiado`}><span style={{ width: `${pool.progressBps / 100}%` }} /></div>
-    <div className="pool-card__meta"><span>{pool.state}</span><span>Vence {formatDate(pool.dueAt)}</span></div>
+    <div className="pool-card__meta"><span>{poolStateLabels[pool.state] ?? "Status em atualização"}</span><span>Vence {formatDate(pool.dueAt)}</span></div>
     <div className="pool-card__coverage"><span>Retorno esperado</span><strong>{formatBps(pool.expectedReturnBps)}</strong></div>
     <LrpPoolOperationalState issues={pool.issues} />
     <div className="pool-card__actions"><Link className="button button--secondary" href={`/pools/${pool.poolId}`}>Ver detalhes <ArrowUpRight aria-hidden="true" size={17} /></Link><a className="share-link" href={whatsappUrl} target="_blank" rel="noreferrer"><MessageCircle aria-hidden="true" size={17} /> WhatsApp</a></div>
@@ -77,7 +91,7 @@ export function LrpPoolsExplorer({ mode, legacyPools = [] }: { mode: LrpOriginat
     return null;
   }
   if (mode === "LEGACY" && (!result || !result.pools.length)) return null;
-  if (!result) return <div className="empty-demo-state" role="status">Carregando projeções verificadas do LRP…</div>;
+  if (!result) return <div className="empty-demo-state" role="status">Carregando pools verificadas…</div>;
   if (!result.pools.length) return <div className="empty-demo-state"><LrpPoolOperationalState issues={result.issues.length ? result.issues : ["PROJECTION_NOT_FOUND"]} /></div>;
   if (mode === "LEGACY") return <>{result.pools.map((pool) => <LrpPoolCard key={pool.eventId} pool={pool} />)}</>;
   return <><LrpPoolOperationalState issues={result.issues.filter((issue) => issue === "REBUILD_IN_PROGRESS")} /><div className="pool-grid">{result.pools.map((pool) => <LrpPoolCard key={pool.eventId} pool={pool} />)}</div></>;

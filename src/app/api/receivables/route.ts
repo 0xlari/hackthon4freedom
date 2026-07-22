@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { and, eq } from "drizzle-orm";
 
 import { protocolSignedEventSchema } from "@protocol/schemas";
 import { NostrToolsRelayClient, lrpRelaysFromEnvironment } from "@nostr/relays";
 import { currentLrpModePolicy } from "@/config/lrp-mode";
+import type { databaseFromEnvironment } from "@/db/client";
+import { lrpReceivableOriginations } from "@/db/schema";
 import { paymentPurposes } from "@/domain/receivable";
 import { assertJsonPayloadSize, assertSameOrigin, enforceRateLimit } from "@/lib/api-security";
 import { withSessionProfile } from "@/lib/app-session";
@@ -12,6 +15,7 @@ import {
   prepareReceivableCandidate,
   publishPreparedReceivable,
 } from "@/services/lrp-receivable-origination-service";
+import { readLrpProductJourney } from "@/services/lrp-product-read-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,18 +60,49 @@ function statusFor(error: unknown) {
   return 400;
 }
 
+async function assertCanonicalLrpDraft(db: ReturnType<typeof databaseFromEnvironment>["db"], draftId: string, requesterId: string) {
+  const [draft] = await db.select({ mode: lrpReceivableOriginations.mode }).from(lrpReceivableOriginations)
+    .where(and(eq(lrpReceivableOriginations.id, draftId), eq(lrpReceivableOriginations.requesterId, requesterId)))
+    .limit(1);
+  if (draft?.mode !== "LRP") throw new Error("LRP_RECEIVABLE_API_DISABLED_IN_LEGACY");
+}
+
+export async function GET(request: Request) {
+  try {
+    const policy = currentLrpModePolicy();
+    return await withSessionProfile(request, async ({ profile, db }) => {
+      enforceRateLimit(`lrp:receivable:read:${profile.userId}`, 60);
+      const canonical = await readLrpProductJourney(db, {
+        requesterId: profile.userId,
+        mode: "LRP",
+      });
+      if (canonical.history.length || policy.mode === "LRP") {
+        return NextResponse.json({ source: "LRP", ...canonical }, { headers });
+      }
+      if (policy.mode === "SHADOW") {
+        const shadow = await readLrpProductJourney(db, { requesterId: profile.userId, mode: "SHADOW" });
+        return NextResponse.json({ source: "SHADOW", ...shadow }, { headers });
+      }
+      return NextResponse.json({ source: "LEGACY", history: [] }, { headers });
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "LRP_RECEIVABLE_READ_FAILED";
+    return NextResponse.json({ error: message }, { status: statusFor(error), headers });
+  }
+}
+
 export async function POST(request: Request) {
   let clients: NostrToolsRelayClient[] = [];
   try {
     assertSameOrigin(request);
     assertJsonPayloadSize(request);
     const policy = currentLrpModePolicy();
-    if (policy.mode === "LEGACY") throw new Error("LRP_RECEIVABLE_API_DISABLED_IN_LEGACY");
     const migratingMode = policy.mode === "SHADOW" ? "SHADOW" : "LRP";
     const body = requestSchema.parse(await request.json());
     return await withSessionProfile(request, async ({ profile, db }) => {
       enforceRateLimit(`lrp:receivable:${profile.userId}`, 20);
       if (body.action === "create_private") {
+        if (policy.mode === "LEGACY") throw new Error("LRP_RECEIVABLE_API_DISABLED_IN_LEGACY");
         const now = new Date();
         const created = await createPrivateReceivableDraft(db, {
           requestKey: body.requestKey,
@@ -105,7 +140,8 @@ export async function POST(request: Request) {
         return NextResponse.json(created, { status: 201, headers });
       }
       if (body.action === "prepare_candidate") {
-        if (policy.mode !== "LRP" || !profile.nostrPubkey) throw new Error("LRP_SIGNER_NOT_LINKED_TO_SESSION");
+        if (policy.mode !== "LRP") await assertCanonicalLrpDraft(db, body.draftId, profile.userId);
+        if (!profile.nostrPubkey) throw new Error("LRP_SIGNER_NOT_LINKED_TO_SESSION");
         const prepared = await prepareReceivableCandidate(db, {
           draftId: body.draftId,
           requesterId: profile.userId,
@@ -113,7 +149,7 @@ export async function POST(request: Request) {
         });
         return NextResponse.json(prepared, { headers });
       }
-      if (policy.mode !== "LRP") throw new Error("LRP_PUBLICATION_DISABLED");
+      if (policy.mode !== "LRP") await assertCanonicalLrpDraft(db, body.draftId, profile.userId);
       if (!profile.nostrPubkey) throw new Error("LRP_SIGNER_NOT_LINKED_TO_SESSION");
       clients = relayClients();
       const published = await publishPreparedReceivable(db, {

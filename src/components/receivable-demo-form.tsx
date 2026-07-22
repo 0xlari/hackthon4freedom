@@ -7,11 +7,12 @@ import type { ProtocolSignedEvent, ProtocolUnsignedEvent, ReceivableCreated } fr
 import { Nip07Signer, type Nip07Window } from "@nostr/signer";
 import type { LrpOriginationMode } from "@/config/lrp-mode";
 import { createDemoReceivable, getDemoState, type DemoReceivable } from "@/lib/demo-store";
+import type { LrpProductNextStep, LrpProductReceivable } from "@/services/lrp-product-read-service";
 
 const DEMO_MIN_DATE = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
 const DEMO_MAX_DATE = new Date(Date.now() + 90 * 86_400_000).toISOString().slice(0, 10);
 
-type LrpDraft = { draftId: string; receivableId: string; status: string; confirmationUrl?: string; candidate?: ProtocolUnsignedEvent; publicEventId?: string };
+type LrpDraft = { draftId: string; receivableId: string; status: string; privateStatus?: string; nextStep?: LrpProductNextStep; confirmationUrl?: string; candidate?: ProtocolUnsignedEvent; publicEventId?: string; pool?: LrpProductReceivable["pool"] };
 
 async function saltedEvidence(file: File | null, requestKey: string) {
   const salt = crypto.getRandomValues(new Uint8Array(32));
@@ -32,6 +33,8 @@ export function ReceivableDemoForm({ lrpMode = "LEGACY" }: { lrpMode?: LrpOrigin
   const [lrpDraft, setLrpDraft] = useState<LrpDraft>();
   const [lrpSigner, setLrpSigner] = useState<Nip07Signer>();
   const [lrpStatus, setLrpStatus] = useState("");
+  const [lrpReadUnavailable, setLrpReadUnavailable] = useState(false);
+  const [productMode, setProductMode] = useState<LrpOriginationMode>(lrpMode);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -42,17 +45,31 @@ export function ReceivableDemoForm({ lrpMode = "LEGACY" }: { lrpMode?: LrpOrigin
       if (!body.profile?.id) return setAuthenticated(false);
       setProfileId(body.profile.id);
       setSessionPubkey(body.profile.nostrPubkey ?? undefined);
-      setCreated(getDemoState(body.profile.id).receivables[0]);
+      try {
+        const journeyResponse = await fetch("/api/receivables", { cache: "no-store" });
+        if (!journeyResponse.ok) throw new Error("LRP_RECEIVABLE_READ_UNAVAILABLE");
+        const journey = await journeyResponse.json() as { source: LrpOriginationMode; active?: LrpProductReceivable };
+        setProductMode(journey.source);
+        if (journey.source === "LRP") {
+          if (journey.active) setLrpDraft({ ...journey.active, status: journey.active.originationStatus });
+        } else {
+          setCreated(getDemoState(body.profile.id).receivables[0]);
+        }
+      } catch {
+        if (lrpMode === "LRP") {
+          setLrpReadUnavailable(true);
+        } else setCreated(getDemoState(body.profile.id).receivables[0]);
+      }
       setAuthenticated(true);
     }).catch(() => setAuthenticated(false));
-  }, []);
+  }, [lrpMode]);
 
   async function linkSigner(signer: Nip07Signer) {
     const pubkey = await signer.getPublicKey();
     if (sessionPubkey === pubkey) return pubkey;
     const challengeResponse = await fetch("/api/protocol/identity/challenge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pubkey }) });
     const challenge = await challengeResponse.json() as { challengeId?: string; event?: ProtocolUnsignedEvent; error?: string };
-    if (!challengeResponse.ok || !challenge.challengeId || !challenge.event) throw new Error(challenge.error ?? "Não foi possível vincular o signer.");
+    if (!challengeResponse.ok || !challenge.challengeId || !challenge.event) throw new Error(challenge.error ?? "Não foi possível vincular sua identidade de assinatura.");
     const proof = await signer.signEvent(challenge.event);
     const completeResponse = await fetch("/api/protocol/identity/complete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ challengeId: challenge.challengeId, event: proof }) });
     const complete = await completeResponse.json() as { error?: string };
@@ -63,17 +80,17 @@ export function ReceivableDemoForm({ lrpMode = "LEGACY" }: { lrpMode?: LrpOrigin
 
   async function prepareWithSigner(draftId: string) {
     try {
-      setLrpStatus("Draft privado salvo. Solicitando seu signer Nostr…");
+      setLrpStatus("Cadastro privado salvo. Solicitando sua assinatura Nostr…");
       const signer = Nip07Signer.fromWindow(window as unknown as Nip07Window);
       await linkSigner(signer);
       const response = await fetch("/api/receivables", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "prepare_candidate", draftId }) });
       const body = await response.json() as LrpDraft & { error?: string };
-      if (!response.ok || !body.candidate) throw new Error(body.error ?? "Não foi possível preparar o evento público.");
+      if (!response.ok || !body.candidate) throw new Error(body.error ?? "Não foi possível preparar as informações públicas.");
       setLrpSigner(signer); setLrpDraft((current) => ({ ...current!, ...body }));
       setLrpStatus("Revise abaixo os dados públicos antes de assinar.");
     } catch (cause) {
-      setLrpStatus("Seu draft privado foi salvo. Conecte um signer Nostr para continuar.");
-      setError(cause instanceof Error ? cause.message : "Signer indisponível.");
+      setLrpStatus("Seu cadastro privado foi salvo. Conecte sua identidade Nostr para continuar.");
+      setError(cause instanceof Error ? cause.message : "Assinatura indisponível.");
     }
   }
 
@@ -82,11 +99,11 @@ export function ReceivableDemoForm({ lrpMode = "LEGACY" }: { lrpMode?: LrpOrigin
     setError("");
     const data = new FormData(event.currentTarget);
     try {
-      if (lrpMode !== "LEGACY") {
+      if (productMode !== "LEGACY") {
         const requestKey = crypto.randomUUID();
         const evidenceFile = data.get("evidence") instanceof File ? data.get("evidence") as File : null;
         const evidence = await saltedEvidence(evidenceFile?.size ? evidenceFile : null, requestKey);
-        const shadowLegacyReceivable = lrpMode === "SHADOW" ? createDemoReceivable(profileId, {
+        const shadowLegacyReceivable = productMode === "SHADOW" ? createDemoReceivable(profileId, {
           purpose: String(data.get("purpose")) as DemoReceivable["purpose"], description: String(data.get("description")),
           amountUsd: Number(data.get("amountUsd")), dueDate: String(data.get("dueDate")), payerName: String(data.get("payerName")),
           payerCountry: String(data.get("payerCountry")), evidenceName: evidenceFile?.name || "comprovante-demo.pdf",
@@ -103,7 +120,7 @@ export function ReceivableDemoForm({ lrpMode = "LEGACY" }: { lrpMode?: LrpOrigin
         const body = await response.json() as LrpDraft & { error?: string };
         if (!response.ok || !body.draftId) throw new Error(body.error ?? "Não foi possível salvar o recebível privado.");
         setLrpDraft(body);
-        if (lrpMode === "SHADOW") return;
+        if (productMode === "SHADOW") return;
         await prepareWithSigner(body.draftId);
         return;
       }
@@ -124,7 +141,7 @@ export function ReceivableDemoForm({ lrpMode = "LEGACY" }: { lrpMode?: LrpOrigin
 
   async function signAndPublish() {
     if (!lrpDraft?.candidate) return;
-    setError(""); setLrpStatus("Aguardando sua assinatura e dois ACKs dos relays…");
+    setError(""); setLrpStatus("Aguardando sua assinatura e a confirmação da rede…");
     try {
       const signer = lrpSigner ?? Nip07Signer.fromWindow(window as unknown as Nip07Window);
       await linkSigner(signer);
@@ -133,46 +150,59 @@ export function ReceivableDemoForm({ lrpMode = "LEGACY" }: { lrpMode?: LrpOrigin
       const body = await response.json() as LrpDraft & { publicationStatus?: string; event?: ProtocolSignedEvent; error?: string };
       if (!response.ok && response.status !== 202) throw new Error(body.error ?? "Publicação falhou.");
       setLrpDraft((current) => ({ ...current!, ...body }));
-      setLrpStatus(body.publicationStatus === "CONFIRMED" ? "Recebível confirmado por pelo menos dois relays." : "Um ACK foi registrado. O mesmo evento poderá ser reenviado.");
+      setLrpStatus(body.publicationStatus === "CONFIRMED" ? "Recebível confirmado pela rede." : "A publicação ainda não foi confirmada. Você poderá tentar novamente sem duplicar o recebível.");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível publicar o recebível."); }
   }
 
   async function retryPublication() {
     if (!lrpDraft) return;
-    setError(""); setLrpStatus("Reenviando exatamente o mesmo evento assinado…");
+    setError(""); setLrpStatus("Repetindo a publicação sem duplicar o recebível…");
     try {
       const response = await fetch("/api/receivables", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "retry", draftId: lrpDraft.draftId }) });
       const body = await response.json() as LrpDraft & { publicationStatus?: string; error?: string };
       if (!response.ok && response.status !== 202) throw new Error(body.error ?? "Retry falhou.");
       setLrpDraft((current) => ({ ...current!, ...body }));
-      setLrpStatus(body.publicationStatus === "CONFIRMED" ? "Recebível confirmado por pelo menos dois relays." : "Publicação ainda aguarda quórum.");
+      setLrpStatus(body.publicationStatus === "CONFIRMED" ? "Recebível confirmado pela rede." : "A publicação ainda não foi confirmada.");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível repetir a publicação."); }
   }
 
-  const confirmationUrl = created && typeof window !== "undefined"
+  const confirmationUrl = productMode !== "LRP" && created && typeof window !== "undefined"
     ? `${window.location.origin}/confirmar?demo=${created.token}`
     : "";
 
   if (authenticated === null) return <div className="dashboard-loading">Confirmando sua carteira…</div>;
   if (!authenticated) return <div className="demo-callout"><strong>Conecte sua carteira para continuar.</strong><a className="button button--primary" href="/entrar?next=/recebivel">Entrar com a carteira</a></div>;
+  if (productMode === "LRP" && lrpReadUnavailable) return <section className="confirmation-form"><h2>Não foi possível carregar seu recebível agora.</h2><p>Tente novamente em alguns instantes. Nenhum dado local será usado como substituto.</p><button className="button button--secondary" type="button" onClick={() => window.location.reload()}>Tentar novamente</button></section>;
 
-  if (lrpMode === "LRP" && (lrpDraft?.status === "PUBLISHED" || lrpDraft?.status === "PROJECTION_PENDING")) {
+  if (productMode === "LRP" && lrpDraft?.pool && (lrpDraft.privateStatus === "POOLED" || lrpDraft.nextStep === "VIEW_POOL")) {
+    return <section className="demo-success"><CheckCircle2 aria-hidden="true" /><span className="kicker">Pool publicada</span><h2>Seu recebível já possui uma pool.</h2><p>A pool está vinculada ao registro público confirmado pela rede.</p><div className="demo-actions"><a className="button button--primary" href={`/pools/${lrpDraft.pool.poolId}`}>Ver pool</a><a className="button button--secondary" href="/painel">Voltar ao painel</a></div></section>;
+  }
+
+  if (productMode === "LRP" && lrpDraft?.privateStatus === "UNDER_VALIDATION") {
+    return <section className="demo-success"><span className="kicker">Análise da plataforma</span><h2>Seu recebível está em análise.</h2><p>Você poderá continuar assim que a avaliação for concluída.</p><a className="button button--secondary" href="/painel">Acompanhar no painel</a></section>;
+  }
+
+  if (productMode === "LRP" && lrpDraft?.privateStatus === "APPROVED" && !lrpDraft.pool) {
+    return <section className="demo-success"><CheckCircle2 aria-hidden="true" /><span className="kicker">Recebível aprovado</span><h2>Revise os termos para criar sua pool.</h2><p>Os termos serão calculados pela plataforma antes da sua assinatura.</p><a className="button button--primary" href="/painel">Revisar e criar pool</a></section>;
+  }
+
+  if (productMode === "LRP" && (lrpDraft?.status === "PUBLISHED" || lrpDraft?.status === "PROJECTION_PENDING")) {
     return <section className="demo-success">
       <CheckCircle2 aria-hidden="true" />
-      <span className="kicker">Recebível LRP publicado</span>
-      <h2>Sua assinatura recebeu quórum.</h2>
-      <p>O recebível privado foi vinculado ao evento público <code>{lrpDraft.publicEventId}</code>. {lrpDraft.status === "PROJECTION_PENDING" ? "A projeção será restaurada pelo rebuild." : "A projeção reconstruível foi persistida."} Confirmação, avaliação e pool ainda continuam fora deste corte.</p>
-      {lrpDraft.confirmationUrl ? <label>Link privado para a próxima etapa<input value={lrpDraft.confirmationUrl} readOnly /></label> : null}
+      <span className="kicker">Recebível publicado</span>
+      <h2>Seu registro público foi confirmado pela rede.</h2>
+      <p>{lrpDraft.status === "PROJECTION_PENDING" ? "A atualização do histórico está em andamento." : "O recebível está pronto para a confirmação do pagador."}</p>
+      {lrpDraft.confirmationUrl ? <label>Link privado para a próxima etapa<input value={lrpDraft.confirmationUrl} readOnly /></label> : <p>O link privado ainda não está disponível. Tente carregar esta página novamente.</p>}
       <div className="demo-actions"><a className="button button--secondary" href="/painel">Voltar ao painel</a></div>
     </section>;
   }
 
-  if (lrpMode === "LRP" && lrpDraft?.candidate) {
+  if (productMode === "LRP" && lrpDraft?.candidate) {
     const publicContent = JSON.parse(lrpDraft.candidate.content) as ReceivableCreated;
     return <section className="confirmation-form">
       <span className="kicker">Revisão antes da assinatura</span>
       <h2>Somente estes dados serão públicos.</h2>
-      <p>Nome do pagador, nome do arquivo e documento não entram no evento. A plataforma nunca solicita sua nsec.</p>
+      <p>Nome do pagador, nome do arquivo e documento não serão publicados. A plataforma nunca solicita sua chave privada.</p>
       <dl className="authorization-review">
         <div><dt>Título público</dt><dd>{publicContent.title}</dd></div>
         <div><dt>Pseudônimo</dt><dd>{publicContent.provider_pseudonym}</dd></div>
@@ -180,27 +210,27 @@ export function ReceivableDemoForm({ lrpMode = "LEGACY" }: { lrpMode?: LrpOrigin
         <div><dt>Vencimento</dt><dd>{new Date(publicContent.due_at * 1000).toLocaleDateString("pt-BR")}</dd></div>
         <div><dt>Categoria e país</dt><dd>{publicContent.category} · {publicContent.country}</dd></div>
         <div><dt>Compromisso da evidência</dt><dd><code>{publicContent.private_evidence_hash}</code></dd></div>
-        <div><dt>Pubkey autora</dt><dd><code>{publicContent.provider_pubkey}</code></dd></div>
+        <div><dt>Identificador público da assinatura</dt><dd><code>{publicContent.provider_pubkey}</code></dd></div>
       </dl>
       <p role="status">{lrpStatus}</p>{error ? <p className="form-error" role="alert">{error}</p> : null}
       <div className="demo-actions">
         {lrpDraft.status === "PUBLICATION_PENDING"
-          ? <button className="button button--primary" type="button" onClick={() => void retryPublication()}>Repetir o mesmo evento</button>
-          : <button className="button button--primary" type="button" onClick={() => void signAndPublish()}>Assinar com minha pubkey e publicar</button>}
+          ? <button className="button button--primary" type="button" onClick={() => void retryPublication()}>Repetir publicação</button>
+          : <button className="button button--primary" type="button" onClick={() => void signAndPublish()}>Assinar e publicar</button>}
       </div>
     </section>;
   }
 
-  if (lrpMode === "LRP" && lrpDraft) {
+  if (productMode === "LRP" && lrpDraft) {
     return <section className="demo-success">
-      <span className="kicker">Draft privado salvo</span><h2>Conecte seu signer Nostr para continuar.</h2>
-      <p>Nada foi publicado. Seus dados privados permanecem no PostgreSQL e você pode tentar novamente sem criar outro recebível.</p>
+      <span className="kicker">Cadastro salvo</span><h2>Continue o cadastro e conecte sua identidade Nostr.</h2>
+      <p>Nada foi publicado. Seus dados privados permanecem protegidos na plataforma e você pode tentar novamente sem criar outro recebível.</p>
       <p role="status">{lrpStatus}</p>{error ? <p className="form-error" role="alert">{error}</p> : null}
-      <button className="button button--primary" type="button" onClick={() => void prepareWithSigner(lrpDraft.draftId)}>Conectar signer e revisar evento</button>
+      <button className="button button--primary" type="button" onClick={() => void prepareWithSigner(lrpDraft.draftId)}>Conectar identidade e revisar dados públicos</button>
     </section>;
   }
 
-  if (created && !["AWAITING_CLIENT", "REJECTED"].includes(created.status)) {
+  if (productMode !== "LRP" && created && !["AWAITING_CLIENT", "REJECTED"].includes(created.status)) {
     const pool = getDemoState(profileId).pools.find((item) => item.title === created.description);
     const underReview = created.status === "UNDER_REVIEW";
     return <section className="demo-success">
@@ -212,7 +242,7 @@ export function ReceivableDemoForm({ lrpMode = "LEGACY" }: { lrpMode?: LrpOrigin
     </section>;
   }
 
-  if (created?.status === "AWAITING_CLIENT") {
+  if (productMode !== "LRP" && created?.status === "AWAITING_CLIENT") {
     return <section className="demo-success">
       <CheckCircle2 aria-hidden="true" />
       <span className="kicker">Recebível cadastrado</span>
@@ -228,18 +258,18 @@ export function ReceivableDemoForm({ lrpMode = "LEGACY" }: { lrpMode?: LrpOrigin
   }
 
   return <form className="receivable-demo-form" onSubmit={submit}>
-    <div className="demo-mode-banner"><FlaskConical aria-hidden="true" /><span><strong>{lrpMode === "LRP" ? "Modo LRP experimental" : "Modo demonstração do hackathon"}</strong> {lrpMode === "LRP" ? "Os dados privados serão salvos no PostgreSQL. Só os campos identificados como públicos serão enviados aos relays depois da sua assinatura." : "Os dados ficam neste navegador. Limite demonstrativo: US$ 5.000. Nenhum fundo é movimentado."}</span></div>
+    <div className="demo-mode-banner"><FlaskConical aria-hidden="true" /><span><strong>{productMode === "LRP" ? "Recebível com registro público" : "Modo demonstração do hackathon"}</strong> {productMode === "LRP" ? "Os dados privados serão salvos nos registros da plataforma. Somente os campos identificados como públicos serão enviados à rede depois da sua assinatura." : "Os dados ficam neste navegador. Limite demonstrativo: US$ 5.000. Nenhum fundo é movimentado."}</span></div>
     <div className="form-grid">
       <label>Origem do pagamento<select name="purpose" required defaultValue="SERVICE"><option value="SERVICE">Serviço</option><option value="SALARY">Salário</option><option value="SALE">Venda</option><option value="COMMISSION">Comissão</option><option value="OTHER">Outro</option></select></label>
       <label>Valor em USD<input name="amountUsd" type="number" min="10" max="5000" step="0.01" defaultValue="100" required /></label>
       <label className="form-grid__wide">Descrição do pagamento<input name="description" minLength={3} maxLength={90} defaultValue="Projeto internacional de design" required /></label>
-      {lrpMode === "LRP" ? <label className="form-grid__wide">Pseudônimo público<input name="publicPseudonym" minLength={2} maxLength={60} defaultValue="Prestadora LRP" required /><small>Será publicado no evento junto com descrição, valor, moeda, vencimento, categoria, país e hash da evidência.</small></label> : null}
+      {productMode === "LRP" ? <label className="form-grid__wide">Pseudônimo público<input name="publicPseudonym" minLength={2} maxLength={60} defaultValue="Prestadora LRP" required /><small>Será publicado junto com descrição, valor, moeda, vencimento, categoria, país e compromisso da evidência.</small></label> : null}
       <label>Data combinada<input name="dueDate" type="date" min={DEMO_MIN_DATE} max={DEMO_MAX_DATE} required /></label>
       <label>País do pagador<select name="payerCountry" defaultValue="US" required><option value="US">Estados Unidos</option><option value="CA">Canadá</option><option value="GB">Reino Unido</option><option value="PT">Portugal</option><option value="OTHER">Outro</option></select></label>
       <label className="form-grid__wide">Nome ou empresa do pagador<input name="payerName" defaultValue="Cliente internacional" required /></label>
       <label className="form-grid__wide">Comprovante do recebível<input name="evidence" type="file" accept=".pdf,.png,.jpg,.jpeg" /></label>
     </div>
     {error ? <p className="form-error" role="alert">{error}</p> : null}
-    <button className="button button--primary" type="submit">{lrpMode === "LRP" ? "Salvar e revisar evento público" : "Cadastrar e gerar link"}</button>
+    <button className="button button--primary" type="submit">{productMode === "LRP" ? "Salvar e revisar informações públicas" : "Cadastrar e gerar link"}</button>
   </form>;
 }

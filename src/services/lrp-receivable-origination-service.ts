@@ -91,7 +91,7 @@ export async function createPrivateReceivableDraft<THKT extends PgQueryResultHKT
   return db.transaction(async (tx) => {
     const [active] = await tx.select({ id: receivables.id }).from(receivables).where(and(
       eq(receivables.requesterId, input.requesterId),
-      notInArray(receivables.status, ["REJECTED"]),
+      notInArray(receivables.status, ["REJECTED", "CLOSED"]),
     )).limit(1);
     if (active) throw new Error("ACTIVE_RECEIVABLE_ALREADY_EXISTS");
 
@@ -124,6 +124,7 @@ export async function createPrivateReceivableDraft<THKT extends PgQueryResultHKT
         payerName: input.payerName,
         payerCountry: input.payerCountry,
         evidenceName: input.evidenceName,
+        confirmationUrl: submitted.confirmationUrl,
       },
     }).returning();
     return { ...publicResult(created!, submitted.confirmationUrl), duplicate: false };

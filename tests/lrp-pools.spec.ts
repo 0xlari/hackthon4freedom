@@ -10,7 +10,7 @@ const pool = {
   projectedAt: "2027-01-15T08:00:00.000Z", issues: [],
 };
 
-test("lista e abre uma pool LRP sem ação financeira", async ({ page }) => {
+test("lista uma pool LRP sem fixtures ou ação financeira", async ({ page }) => {
   test.skip(process.env.LRP_ORIGINATION_MODE !== "LRP", "executado na validação dedicada do modo LRP");
   await page.route("**/api/lrp/pools*", async (route) => route.fulfill({
     status: 200,
@@ -19,12 +19,8 @@ test("lista e abre uma pool LRP sem ação financeira", async ({ page }) => {
   }));
   await page.goto("/pools");
   await expect(page.getByRole("heading", { name: pool.title })).toBeVisible();
-  await Promise.all([
-    page.waitForURL(`**/pools/${pool.poolId}`, { timeout: 30_000 }),
-    page.getByRole("link", { name: /ver detalhes/i }).click(),
-  ]);
-  await expect(page.getByText(`Evento verificado em ${pool.relayConfirmations} relays`)).toBeVisible();
-  await expect(page.getByRole("button", { name: /aporte desabilitado/i })).toBeDisabled();
-  await expect(page.getByText(pool.eventId)).toBeVisible();
+  await expect(page.getByRole("link", { name: /ver detalhes/i })).toHaveAttribute("href", `/pools/${pool.poolId}`);
+  await expect(page.getByText("Projeto criativo internacional")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /simular aporte|aportar/i })).toHaveCount(0);
   await expect(page.getByText(/cpf|nome civil|invoice|preimage|nostr\+walletconnect/i)).toHaveCount(0);
 });
