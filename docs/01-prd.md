@@ -22,17 +22,17 @@ Demonstrar que um pagamento legítimo devido a uma pessoa no Brasil por um pagad
 - Como solicitante, quero compartilhar a página sanitizada da minha pool pelo WhatsApp para ajudá-la a fechar.
 - Como aportadora, quero ver exatamente quem assume volatilidade, inadimplência e custos.
 - Como plataforma, quero impedir recebíveis duplicados e pagadores reincidentes.
-- Como participante, quero entrar assinando um desafio na carteira Lightning e consultar atestados não sensíveis sem publicar minha carteira.
+- Como participante, quero entrar com minha identidade Nostr e autorizar eventos públicos sem entregar minha chave privada à plataforma.
 
 ## Requisitos funcionais
 
 ### Conta, identidade e limite
 
 - RF-01: criar conta sem exigir gênero.
-- RF-01A: criar e acessar a conta por LNURL-auth, sem exigir e-mail, telefone, endereço de pagamento, saldo ou frase-semente.
-- RF-01B: manter a reputação no ID interno opaco e permitir, em evolução posterior, mais de uma carteira autenticadora por conta sem multiplicar reputação.
+- RF-01A: criar e acessar a conta por desafio Nostr NIP-07 de uso único, sem exigir e-mail, telefone, endereço de pagamento, saldo ou chave privada.
+- RF-01B: usar `nostr_pubkey` como identidade principal e manter a reputação vinculada à mesma conta, sem unir automaticamente pubkeys diferentes.
 - RF-02: atribuir limite inicial equivalente a US$ 100.
-- RF-03: permitir conexão de identidade Nostr e redes sociais por consentimento.
+- RF-03: usar a identidade Nostr autenticada para autoria dos eventos LRP e permitir conexão de redes sociais por consentimento.
 - RF-04: registrar evidências verificadas, fonte, data, expiração e impacto no limite.
 - RF-05: aceitar garantia em BTC pela regra não aditiva em que US$ 1 elegível sustenta até US$ 2 de limite total.
 - RF-06: explicar cada aumento ou redução do limite; missões consentidas elevam o componente sem garantia de US$ 100 até US$ 5.000 por recebível.
@@ -87,7 +87,7 @@ Demonstrar que um pagamento legítimo devido a uma pessoa no Brasil por um pagad
 - RNF-06: modo demonstração visualmente distinto do modo mainnet.
 - RNF-07: recuperação de falhas de webhook, relay, cotação e pagamento.
 - RNF-08: acessibilidade básica, português e arquitetura preparada para espanhol.
-- RNF-09: desafios LNURL-auth expiráveis, de uso único e vinculados a host HTTPS estável; sessões revogáveis em cookie `HttpOnly`.
+- RNF-09: desafios Nostr expiráveis, de uso único e vinculados a URL, método, domínio e propósito; sessões revogáveis em cookie `HttpOnly`.
 - RNF-10: a plataforma não armazena chaves de aportes DLC nem mantém o principal enquanto a pool está aberta.
 
 ## Regras financeiras
@@ -137,6 +137,6 @@ USDt/Liquid permanece apenas como pesquisa de roadmap. DLC mainnet, carteira con
 
 ## Pagamento do pagador no vencimento
 
-Depois de confirmar o recebível e aceitar BTC, o pagador escolhe independentemente entre NWC automático opcional ou Lightning manual com qualquer carteira. NWC não é login, não exige conta Nostr e não substitui LNURL-auth.
+Depois de confirmar o recebível e aceitar BTC, o pagador escolhe independentemente entre NWC automático opcional ou Lightning manual com qualquer carteira. NWC não é login e permanece separado da identidade Nostr usada pela prestadora.
 
 A plataforma valida `pay_invoice`, protege o secret e aplica vencimento, valor, tarifa, expiração, revogação e uso único. A conexão não garante saldo, rota, disponibilidade ou pagamento futuro. Falha definitiva apresenta a mesma invoice para pagamento manual; resultado desconhecido aguarda conciliação e nunca dispara retry automático. O modo atual executa o worker somente com gateways simulados.

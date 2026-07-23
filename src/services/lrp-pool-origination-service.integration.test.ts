@@ -134,4 +134,49 @@ describe("originação real de PoolCreated", () => {
     await postgres.query("update lrp_pool_originations set terms_payload = jsonb_set(terms_payload, '{publicTerms,target_sats}', '\"999\"'::jsonb) where id = $1", [preview.poolOriginationId]);
     await expect(publishPreparedPoolCreated(database, { poolOriginationId: preview.poolOriginationId, requesterId: state.id, signedEvent: await state.provider.signEvent(prepared.candidate!), clients: state.relays, now })).rejects.toThrow("LRP_POOL_TERMS_CHANGED");
   }, 30_000);
+
+  it("publica PoolCreated quando o PayerCommitmentProof foi preparado antes da conexão NWC (has_nwc_authorization=false)", async () => {
+    const id = "pool-nwc-after";
+    const relays = [new InMemoryRelayClient(`wss://${id}-one.example/`), new InMemoryRelayClient(`wss://${id}-two.example/`), new InMemoryRelayClient(`wss://${id}-three.example/`)];
+    await database.insert(users).values({ id, reputationId: crypto.randomUUID(), countryCode: "BR", status: "ACTIVE" });
+    const requestKey = crypto.randomUUID();
+    const created = await createPrivateReceivableDraft(database, {
+      requestKey, requesterId: id, mode: "LRP", paymentDescription: "Contrato confidencial", paymentPurpose: "SERVICE",
+      nominalUsdCents: 200_000n, dueAt, payerName: "Cliente Privado", payerCountry: "US", evidenceName: "contrato.pdf",
+      evidence: { privateObjectReference: `private/${requestKey}`, sha256: createHash("sha256").update(id).digest("hex"), extension: ".pdf", declaredMimeType: "application/pdf", detectedMimeType: "application/pdf", byteSize: 2000, scanStatus: "CLEAN" },
+      publicPseudonym: "Criadora 91", now, confirmationExpiresAt: new Date("2026-07-23T12:00:00.000Z"), confirmationBaseUrl: "https://example.test",
+    });
+    const provider = new FakeSigner(new Uint8Array(32).fill(id.length + 101));
+    const root = await prepareReceivableCandidate(database, { draftId: created.draftId, requesterId: id, providerPubkey: await provider.getPublicKey() });
+    await publishPreparedReceivable(database, { draftId: created.draftId, requesterId: id, signedEvent: await provider.signEvent(root.candidate!), clients: relays, now });
+    const rawToken = new URL(created.confirmationUrl!).hash.slice(1);
+    await confirmReceivable(database, { rawToken, acceptsBtc: true, confirmsDescription: true, confirmedAmountUsdCents: 200_000n, confirmedDueAt: dueAt, termsVersion: "receivable-btc-v2", now });
+    const originatorPubkey = await originator.getPublicKey();
+    const commitment = await preparePayerCommitmentProof(database, { receivableId: created.receivableId, mode: "LRP", originatorPubkey, now });
+    expect(commitment.status).toBe("CANDIDATE_READY");
+    const commitmentContent = JSON.parse(commitment.candidate!.content) as { has_nwc_authorization: boolean };
+    expect(commitmentContent.has_nwc_authorization).toBe(false);
+    const commitmentPublished = await publishPayerCommitmentProof(database, { originatorEventId: commitment.originatorEventId, originatorPubkey, signedEvent: await originator.signEvent(commitment.candidate!), clients: relays, now });
+    await postgres.query("insert into consents (id, user_id, type, policy_version, granted_at) values ($1, $2, 'IDENTITY_PROCESSING', 'v1', $3)", [`consent-${id}`, id, now]);
+    await postgres.query("insert into identity_evidences (id, user_id, type, provider, protected_reference, status, verified_at) values ($1, $2, 'IDENTITY', 'test', $3, 'VERIFIED', $4)", [`identity-${id}`, id, `identity/${id}`, now]);
+    await postgres.query("insert into credit_limits (user_id, total_amount, used_amount, rule_version, breakdown) values ($1, 1000000, 0, 'limit-v0.1', '{}')", [id]);
+    const decision = await evaluateAndPrepareValidationDecision(database, { receivableId: created.receivableId, mode: "LRP", originatorPubkey, now, correlationId: crypto.randomUUID() });
+    const decisionPublished = await publishValidationDecision(database, { originatorEventId: decision.originatorEventId, originatorPubkey, signedEvent: await originator.signEvent(decision.candidate!), clients: relays, now });
+    const authorization = await createPayerPaymentAuthorization(database, { receivableId: created.receivableId, rawConfirmationToken: rawToken, method: "NWC_AUTOMATIC", maxAmountMsat: 30_000_000n, maxFeeMsat: 10_000n, now });
+    const secret = createHash("sha256").update(id).digest("hex");
+    await connectNwcAuthorization(database, new FakeNwcGateway(), { publicId: authorization.publicId, managementToken: authorization.managementToken, nwcUri: `nostr+walletconnect://${"c".repeat(64)}?relay=${encodeURIComponent("wss://private-relay.example/")}&secret=${secret}`, now, protectRelayMetadata: true });
+    const [privateAuthorization] = await database.select().from(payerPaymentAuthorizations).where(eq(payerPaymentAuthorizations.receivableId, created.receivableId));
+    const nwc = await prepareNwcAuthorizationAttestation(database, { receivableId: created.receivableId, mode: "LRP", originatorPubkey, now });
+    const nwcPublished = await publishNwcAuthorizationAttestation(database, { originatorEventId: nwc.originatorEventId, originatorPubkey, signedEvent: await originator.signEvent(nwc.candidate!), clients: relays, now });
+    const preview = await previewPoolCreated(database, { receivableId: created.receivableId, requesterId: id, mode: "LRP", now });
+    const prepared = await acceptAndPreparePoolCreated(database, { poolOriginationId: preview.poolOriginationId, requesterId: id, termsHash: preview.termsHash, consent: true, now });
+    const signed = await provider.signEvent(prepared.candidate!);
+    const published = await publishPreparedPoolCreated(database, { poolOriginationId: preview.poolOriginationId, requesterId: id, signedEvent: signed, clients: relays, now });
+    expect(published).toMatchObject({ publicationStatus: "CONFIRMED", status: "PUBLISHED", publicEventId: signed.id });
+    expect(await database.select().from(pools).where(eq(pools.receivableId, created.receivableId))).toHaveLength(1);
+    expect(JSON.stringify(signed)).not.toMatch(/nostr\+walletconnect|secret|preimage/i);
+    await clearLrpProjections(database);
+    await rebuildLrpProjections(database, relays, new Date(now.getTime() + 2000));
+    expect(await database.select().from(lrpPoolProjections)).toHaveLength(1);
+  }, 30_000);
 });

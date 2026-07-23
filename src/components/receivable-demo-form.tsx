@@ -67,6 +67,7 @@ export function ReceivableDemoForm({ lrpMode = "LEGACY" }: { lrpMode?: LrpOrigin
   async function linkSigner(signer: Nip07Signer) {
     const pubkey = await signer.getPublicKey();
     if (sessionPubkey === pubkey) return pubkey;
+    if (sessionPubkey) throw new Error("A identidade usada não corresponde à sessão atual.");
     const challengeResponse = await fetch("/api/protocol/identity/challenge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pubkey }) });
     const challenge = await challengeResponse.json() as { challengeId?: string; event?: ProtocolUnsignedEvent; error?: string };
     if (!challengeResponse.ok || !challenge.challengeId || !challenge.event) throw new Error(challenge.error ?? "Não foi possível vincular sua identidade de assinatura.");
@@ -89,8 +90,8 @@ export function ReceivableDemoForm({ lrpMode = "LEGACY" }: { lrpMode?: LrpOrigin
       setLrpSigner(signer); setLrpDraft((current) => ({ ...current!, ...body }));
       setLrpStatus("Revise abaixo os dados públicos antes de assinar.");
     } catch (cause) {
-      setLrpStatus("Seu cadastro privado foi salvo. Conecte sua identidade Nostr para continuar.");
-      setError(cause instanceof Error ? cause.message : "Assinatura indisponível.");
+      setLrpStatus("Seu acesso continua ativo, mas precisamos do seu assinador Nostr para autorizar esta publicação.");
+      setError(cause instanceof Error && cause.message !== "NIP07_PROVIDER_NOT_AVAILABLE" ? cause.message : "Não encontramos um assinador Nostr neste navegador.");
     }
   }
 
@@ -170,8 +171,8 @@ export function ReceivableDemoForm({ lrpMode = "LEGACY" }: { lrpMode?: LrpOrigin
     ? `${window.location.origin}/confirmar?demo=${created.token}`
     : "";
 
-  if (authenticated === null) return <div className="dashboard-loading">Confirmando sua carteira…</div>;
-  if (!authenticated) return <div className="demo-callout"><strong>Conecte sua carteira para continuar.</strong><a className="button button--primary" href="/entrar?next=/recebivel">Entrar com a carteira</a></div>;
+  if (authenticated === null) return <div className="dashboard-loading">Confirmando seu acesso…</div>;
+  if (!authenticated) return <div className="demo-callout"><strong>Entre para continuar.</strong><a className="button button--primary" href="/entrar?next=/recebivel">Entrar com Nostr</a></div>;
   if (productMode === "LRP" && lrpReadUnavailable) return <section className="confirmation-form"><h2>Não foi possível carregar seu recebível agora.</h2><p>Tente novamente em alguns instantes. Nenhum dado local será usado como substituto.</p><button className="button button--secondary" type="button" onClick={() => window.location.reload()}>Tentar novamente</button></section>;
 
   if (productMode === "LRP" && lrpDraft?.pool && (lrpDraft.privateStatus === "POOLED" || lrpDraft.nextStep === "VIEW_POOL")) {
@@ -223,10 +224,10 @@ export function ReceivableDemoForm({ lrpMode = "LEGACY" }: { lrpMode?: LrpOrigin
 
   if (productMode === "LRP" && lrpDraft) {
     return <section className="demo-success">
-      <span className="kicker">Cadastro salvo</span><h2>Continue o cadastro e conecte sua identidade Nostr.</h2>
-      <p>Nada foi publicado. Seus dados privados permanecem protegidos na plataforma e você pode tentar novamente sem criar outro recebível.</p>
+      <span className="kicker">Cadastro salvo</span><h2>Revise as informações públicas</h2>
+      <p>Confira os dados que serão assinados e publicados. Informações privadas e documentos permanecem protegidos na plataforma.</p>
       <p role="status">{lrpStatus}</p>{error ? <p className="form-error" role="alert">{error}</p> : null}
-      <button className="button button--primary" type="button" onClick={() => void prepareWithSigner(lrpDraft.draftId)}>Conectar identidade e revisar dados públicos</button>
+      <button className="button button--primary" type="button" onClick={() => void prepareWithSigner(lrpDraft.draftId)}>Revisar e autorizar publicação</button>
     </section>;
   }
 

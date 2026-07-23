@@ -40,7 +40,9 @@ export function LrpPoolCreation({ mode }: { mode: "SHADOW" | "LRP" }) {
     const pubkey = await signer.getPublicKey();
     const session = await fetch("/api/auth/session", { cache: "no-store" });
     const sessionBody = await session.json() as { profile?: { nostrPubkey?: string | null } };
-    if (sessionBody.profile?.nostrPubkey !== pubkey) {
+    const sessionPubkey = sessionBody.profile?.nostrPubkey;
+    if (sessionPubkey && sessionPubkey !== pubkey) throw new Error("A identidade usada não corresponde à sessão atual.");
+    if (!sessionPubkey) {
       const challengeResponse = await fetch("/api/protocol/identity/challenge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pubkey }) });
       const challenge = await challengeResponse.json() as { challengeId?: string; event?: ProtocolUnsignedEvent; error?: string };
       if (!challengeResponse.ok || !challenge.challengeId || !challenge.event) throw new Error(challenge.error ?? "Assinatura indisponível.");

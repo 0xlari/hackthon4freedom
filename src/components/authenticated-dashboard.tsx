@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BadgeCheck, Bitcoin, BriefcaseBusiness, FilePlus2, Fingerprint, FlaskConical, Link2, Radio, ShieldCheck, Users } from "lucide-react";
+import { BadgeCheck, Bitcoin, BriefcaseBusiness, Copy, ExternalLink, FilePlus2, Fingerprint, FlaskConical, Link2, Radio, ShieldCheck, Users } from "lucide-react";
 
 import { ButtonLink } from "@/components/button-link";
 import { LrpPoolCreation } from "@/components/lrp-pool-creation";
@@ -32,7 +32,7 @@ function nextAction(item: LrpProductReceivable) {
   if (item.nextStep === "VIEW_POOL" && item.pool) return { href: `/pools/${item.pool.poolId}`, label: "Ver pool" };
   if (item.nextStep === "CREATE_POOL" || item.nextStep === "REVIEW_POOL") return { href: "/painel#criar-pool", label: "Revisar e criar pool" };
   if (item.nextStep === "AWAIT_REVIEW") return { href: "/recebivel", label: "Acompanhar análise" };
-  if (item.nextStep === "SHARE_CONFIRMATION" || item.nextStep === "AWAIT_PAYER") return { href: "/recebivel", label: "Enviar confirmação ao pagador" };
+  if (item.nextStep === "SHARE_CONFIRMATION" || item.nextStep === "AWAIT_PAYER") return { href: "/recebivel", label: "Abrir recebível" };
   return { href: "/recebivel", label: "Continuar recebível" };
 }
 
@@ -53,6 +53,7 @@ export function AuthenticatedDashboard({ lrpMode = "LEGACY" }: { lrpMode?: LrpOr
   const [lrpHistoryState, setLrpHistoryState] = useState<LrpHistoryState>("idle");
   const [productMode, setProductMode] = useState<LrpOriginationMode>(lrpMode);
   const [productSourceResolved, setProductSourceResolved] = useState(false);
+  const [confirmationCopied, setConfirmationCopied] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -166,7 +167,12 @@ export function AuthenticatedDashboard({ lrpMode = "LEGACY" }: { lrpMode?: LrpOr
           {productMode === "LRP"
             ? lrpHistoryState === "ready"
               ? lrpJourney.active
-                ? <ButtonLink href={nextAction(lrpJourney.active).href} variant="secondary">{nextAction(lrpJourney.active).label}</ButtonLink>
+                ? (lrpJourney.active.nextStep === "SHARE_CONFIRMATION" || lrpJourney.active.nextStep === "AWAIT_PAYER") && lrpJourney.active.confirmationUrl
+                  ? <div className="demo-actions">
+                    <button className="button button--secondary" type="button" onClick={() => { void navigator.clipboard.writeText(lrpJourney.active!.confirmationUrl!).then(() => setConfirmationCopied(true)); }}><Copy size={17} /> {confirmationCopied ? "Link copiado" : "Copiar link de confirmação"}</button>
+                    <a className="button button--primary" href={lrpJourney.active.confirmationUrl} target="_blank" rel="noreferrer">Enviar confirmação ao pagador <ExternalLink size={17} /></a>
+                  </div>
+                  : <ButtonLink href={nextAction(lrpJourney.active).href} variant="secondary">{nextAction(lrpJourney.active).label}</ButtonLink>
                 : <ButtonLink href="/recebivel" variant="secondary">Criar recebível</ButtonLink>
               : null
             : <ButtonLink href={receivables.some((item) => item.status === "UNDER_REVIEW") ? "/administracao" : "/recebivel"} variant="secondary">{receivables.some((item) => item.status === "UNDER_REVIEW") ? "Abrir avaliação" : "Criar recebível"}</ButtonLink>}

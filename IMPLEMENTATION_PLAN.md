@@ -334,7 +334,7 @@ A atribuição precisa ser comprovada por `PoolReferral`, referenciado em `Contr
 ### Fundação do produto
 
 - aplicação Next.js e painel;
-- autenticação LNURL-auth para a sessão da plataforma;
+- autenticação Nostr NIP-07 para a sessão da plataforma; infraestrutura LNURL-auth preservada apenas como legado de rollback;
 - domínio financeiro e ledger;
 - PostgreSQL/Drizzle;
 - fluxos demonstrativos de recebível, confirmação, análise, pool e aporte;

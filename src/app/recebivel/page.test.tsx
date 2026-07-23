@@ -9,6 +9,6 @@ describe("página do recebível", () => {
     render(<ReceivablePage />);
     expect(screen.getByRole("heading", { name: /cadastre o pagamento/i })).toBeInTheDocument();
     expect(screen.getByText(/somente um recebível ativo por vez/i)).toBeInTheDocument();
-    expect(await screen.findByRole("link", { name: /entrar com a carteira/i })).toHaveAttribute("href", "/entrar?next=/recebivel");
+    expect(await screen.findByRole("link", { name: /entrar com nostr/i })).toHaveAttribute("href", "/entrar?next=/recebivel");
   });
 });

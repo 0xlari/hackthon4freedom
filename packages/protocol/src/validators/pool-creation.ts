@@ -20,11 +20,11 @@ export function validatePoolCreationGraph(poolInput: ProtocolSignedEvent, graphI
   if (!receivable || receivable.content.event_type !== "ReceivableCreated") return { valid: false, reason: "RECEIVABLE_REQUIRED" };
   if (!commitment || commitment.content.event_type !== "PayerCommitmentProof") return { valid: false, reason: "PAYER_COMMITMENT_REQUIRED" };
   if (!approval || approval.content.event_type !== "ClientValidationDecision" || approval.content.decision !== "APPROVED") return { valid: false, reason: "CLIENT_APPROVAL_REQUIRED" };
-  if (!nwc || nwc.content.event_type !== "NwcAuthorizationAttestation" || nwc.content.authorization_state !== "ACTIVE" || !nwc.content.pay_invoice_supported) return { valid: false, reason: "ACTIVE_NWC_ATTESTATION_REQUIRED" };
+  if (!nwc || nwc.content.event_type !== "NwcAuthorizationAttestation") return { valid: false, reason: "PAYER_NWC_COMMITMENT_REQUIRED" };
+  if (nwc.content.authorization_state !== "ACTIVE" || !nwc.content.pay_invoice_supported) return { valid: false, reason: "ACTIVE_NWC_ATTESTATION_REQUIRED" };
   if (pool.event.pubkey !== receivable.event.pubkey) return { valid: false, reason: "POOL_PROVIDER_MISMATCH" };
   if (commitment.content.receivable_event_id !== receivable.event.id || approval.content.receivable_event_id !== receivable.event.id || nwc.content.receivable_event_id !== receivable.event.id) return { valid: false, reason: "RECEIVABLE_REFERENCE_MISMATCH" };
   if (commitment.content.originator_pubkey !== terms.originator_pubkey || approval.event.pubkey !== terms.originator_pubkey || approval.content.client_pubkey !== terms.originator_pubkey || nwc.event.pubkey !== terms.originator_pubkey || nwc.content.executor_pubkey !== terms.originator_pubkey) return { valid: false, reason: "ORIGINATOR_AUTHORITY_MISMATCH" };
-  if (!commitment.content.has_nwc_authorization) return { valid: false, reason: "PAYER_NWC_COMMITMENT_REQUIRED" };
   if (nwc.content.expires_at <= terms.due_at) return { valid: false, reason: "NWC_EXPIRES_BEFORE_POOL_DUE" };
   return { valid: true, pool };
 }

@@ -58,8 +58,8 @@ Na pool pareada em dólar, o ledger separa a obrigação protegida em USDT da li
 
 ## Autenticação e autorização
 
-- Participantes: LNURL-auth. A API gera `k1` aleatório e QR, a carteira assina com linking key específica de `auth.agendacryptoo.com`, o servidor verifica secp256k1 e emite sessão própria em cookie `HttpOnly`. O banco guarda apenas hashes de linking key, polling e sessão; endereço Lightning de recebimento é dado privado separado.
-- Reputação Nostr: não autentica e não requer signer da participante. Um signer institucional externo publica atestados positivos pseudônimos por outbox; PostgreSQL permanece a fonte de autorização e risco.
+- Participantes: Nostr NIP-07. A API gera um desafio NIP-98 aleatório, expirável e de uso único, vinculado a URL, método, domínio e propósito `LOGIN`; o signer da participante assina no navegador e o servidor emite sessão própria em cookie `HttpOnly`. O banco guarda o hash do desafio e da sessão, nunca a chave privada.
+- Identidade e reputação Nostr: `users.nostr_pubkey` identifica a conta e deve ser a mesma autoria de `ReceivableCreated` e `PoolCreated`. PostgreSQL permanece a fonte de autorização privada e risco; decisões administrativas continuam sob autoridade institucional separada.
 - Cliente pagador: link tokenizado, hash armazenado, expiração, uso limitado e confirmação adicional para mudanças críticas.
 - Administração: identidade separada, MFA, sessão curta e trilha de auditoria.
 - Autorização no servidor por recurso e papel; esconder botão não constitui controle.
@@ -105,7 +105,7 @@ Logs estruturados sem PII, correlation ID por operação, métricas de invoices,
 
 - Local: regtest/simuladores e dados fictícios.
 - Preview: signet/testes, relays separados e nenhum segredo mainnet.
-- Auth local: localhost permite testes de API/navegador, mas uma carteira em outro dispositivo só retorna para callback HTTPS público. O host LNURL-auth de produção não deve ser trocado depois do lançamento.
+- Auth local: um provider NIP-07 controlado permite testes de navegador sem extensão real. Em produção, o desafio valida exatamente a origem e o domínio HTTPS da própria aplicação.
 - Demo mainnet: feature flag, allowlist, limites mínimos e operação acompanhada.
 - Produção: não existe até revisão jurídica, segurança, backup e testes de recuperação.
 

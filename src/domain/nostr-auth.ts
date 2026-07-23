@@ -5,6 +5,7 @@ import { verifyEvent } from "nostr-tools/pure";
 export const NOSTR_HTTP_AUTH_KIND = 27235;
 export const NOSTR_CHALLENGE_TTL_SECONDS = 60;
 export const NOSTR_SESSION_TTL_SECONDS = 60 * 60 * 12;
+export type NostrAuthPurpose = "LINK" | "LOGIN";
 
 export function sha256Hex(value: string) {
   return createHash("sha256").update(value, "utf8").digest("hex");
@@ -14,7 +15,7 @@ export function isHexPubkey(value: string) {
   return /^[a-f0-9]{64}$/.test(value);
 }
 
-export function createNostrChallenge(pubkey: string, requestUrl: string, now = new Date()) {
+export function createNostrChallenge(pubkey: string, requestUrl: string, now = new Date(), purpose: NostrAuthPurpose = "LINK") {
   if (!isHexPubkey(pubkey)) throw new Error("INVALID_NOSTR_PUBKEY");
   const url = new URL(requestUrl);
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error("INVALID_AUTH_URL");
@@ -31,6 +32,8 @@ export function createNostrChallenge(pubkey: string, requestUrl: string, now = n
       ["method", "POST"],
       ["payload", nonceHash],
       ["expiration", String(Math.floor(expiresAt.getTime() / 1000))],
+      ["domain", url.host],
+      ["purpose", purpose],
     ],
   };
 
@@ -49,6 +52,7 @@ export function validateNostrChallengeEvent(input: {
   expectedRequestUrl: string;
   expiresAt: Date;
   usedAt: Date | null;
+  expectedPurpose?: NostrAuthPurpose;
   now?: Date;
 }) {
   const now = input.now ?? new Date();
@@ -61,6 +65,9 @@ export function validateNostrChallengeEvent(input: {
   if (singleTag(input.event, "method") !== "POST") throw new Error("NOSTR_AUTH_METHOD_MISMATCH");
   if (singleTag(input.event, "payload") !== input.expectedNonceHash) throw new Error("NOSTR_AUTH_PAYLOAD_MISMATCH");
   if (singleTag(input.event, "expiration") !== String(Math.floor(input.expiresAt.getTime() / 1000))) throw new Error("NOSTR_AUTH_EXPIRATION_MISMATCH");
+  const expectedUrl = new URL(input.expectedRequestUrl);
+  if (singleTag(input.event, "domain") !== expectedUrl.host) throw new Error("NOSTR_AUTH_DOMAIN_MISMATCH");
+  if (singleTag(input.event, "purpose") !== (input.expectedPurpose ?? "LINK")) throw new Error("NOSTR_AUTH_PURPOSE_MISMATCH");
   if (!verifyEvent(input.event)) throw new Error("INVALID_NOSTR_SIGNATURE");
 }
 

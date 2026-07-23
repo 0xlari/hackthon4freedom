@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildProtocolEvent } from "@protocol/builders";
@@ -44,6 +44,7 @@ describe("retomada do recebível no produto", () => {
     cleanup();
     vi.restoreAllMocks();
     resetDemoState();
+    Reflect.deleteProperty(window, "nostr");
   });
 
   it("ignora pool local e retoma o draft privado do PostgreSQL", async () => {
@@ -54,7 +55,8 @@ describe("retomada do recebível no produto", () => {
       history: [],
     });
     render(<ReceivableDemoForm lrpMode="LRP" />);
-    expect(await screen.findByRole("heading", { name: /continue o cadastro e conecte sua identidade nostr/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /revise as informações públicas/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /revisar e autorizar publicação/i })).toBeVisible();
     expect(screen.queryByText(/sua pool btc foi criada/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/recebível somente local/i)).not.toBeInTheDocument();
   });
@@ -85,5 +87,20 @@ describe("retomada do recebível no produto", () => {
     mockJourney({ source: "LEGACY", history: [] });
     render(<ReceivableDemoForm lrpMode="LEGACY" />);
     expect(await screen.findByRole("heading", { name: /sua pool btc foi criada/i })).toBeInTheDocument();
+  });
+
+  it("blocks a signer whose pubkey differs from the authenticated Nostr identity", async () => {
+    Object.defineProperty(window, "nostr", { configurable: true, value: {
+      getPublicKey: vi.fn().mockResolvedValue("2".repeat(64)),
+      signEvent: vi.fn(),
+    } });
+    mockJourney({
+      source: "LRP",
+      active: { receivableId: "real-3", draftId: "draft-3", privateStatus: "DRAFT", originationStatus: "PRIVATE_DRAFT", canonicalSource: "LEGACY", title: "Recebível real", nominalUsdCents: "10000", dueAt: "2026-08-20T12:00:00.000Z", nextStep: "CONNECT_IDENTITY" },
+      history: [],
+    });
+    render(<ReceivableDemoForm lrpMode="LRP" />);
+    fireEvent.click(await screen.findByRole("button", { name: /revisar e autorizar publicação/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("A identidade usada não corresponde à sessão atual.");
   });
 });

@@ -33,15 +33,49 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (policy.mode === "LEGACY") {
       return NextResponse.json(safeConnectionResponse(result), { headers });
     }
-    const prepared = await prepareNwcAuthorizationAttestation(bundle.db, {
-      receivableId: result.receivableId,
-      mode: policy.mode,
-      originatorPubkey: process.env.LRP_ORIGINATOR_PUBKEY?.trim().toLowerCase() || undefined,
-      now,
-    });
-    return NextResponse.json({ ...safeConnectionResponse(result), lrp: { status: prepared.status, signatureRequired: prepared.status === "CANDIDATE_READY" } }, { headers });
-  } catch (error) {
-    const status = error instanceof DomainError || error instanceof z.ZodError || error instanceof TypeError ? 400 : 500;
-    return NextResponse.json({ error: status === 500 ? "Serviço temporariamente indisponível." : "Não foi possível validar a conexão NWC." }, { status, headers });
-  } finally { await bundle?.close(); }
+    try {
+      const prepared = await prepareNwcAuthorizationAttestation(bundle.db, {
+        receivableId: result.receivableId,
+        mode: policy.mode,
+        originatorPubkey: process.env.LRP_ORIGINATOR_PUBKEY?.trim().toLowerCase() || undefined,
+        now,
+      });
+      return NextResponse.json({ ...safeConnectionResponse(result), lrp: { status: prepared.status, signatureRequired: prepared.status === "CANDIDATE_READY" } }, { headers });
+    } catch (error) {
+      if (error instanceof Error && error.message === "LRP_NWC_PRIVATE_AUTHORIZATION_NOT_FOUND") {
+        return NextResponse.json(safeConnectionResponse(result), { headers });
+      }
+      throw error;
+    }
+    } catch (error) {
+    console.error(
+      "NWC_CONNECT_FAILED",
+      error instanceof Error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          }
+        : error,
+    );
+
+    const status =
+      error instanceof DomainError ||
+      error instanceof z.ZodError ||
+      error instanceof TypeError
+        ? 400
+        : 500;
+
+    return NextResponse.json(
+      {
+        error:
+          status === 500
+            ? "Serviço temporariamente indisponível."
+            : "Não foi possível validar a conexão NWC.",
+      },
+      { status, headers },
+    );
+  } finally {
+    await bundle?.close();
+  }
 }

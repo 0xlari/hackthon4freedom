@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AuthenticatedDashboard } from "./authenticated-dashboard";
@@ -37,7 +37,10 @@ describe("AuthenticatedDashboard", () => {
   it("mostra o recebível PostgreSQL e ignora recebíveis e aportes locais em LRP", async () => {
     createDemoReceivable("profile-a", { purpose: "SERVICE", description: "Somente no navegador", amountUsd: 80, dueDate: "2026-08-20", payerName: "Local", payerCountry: "US", evidenceName: "local.pdf" });
     recordDemoContribution("profile-a", publicPools[0]!, 1_000, 1_050);
-    const real = { receivableId: "real-1", draftId: "draft-1", privateStatus: "AWAITING_CLIENT", originationStatus: "PUBLISHED", canonicalSource: "LRP", title: "Salário internacional real", nominalUsdCents: "250000", dueAt: "2026-08-20T12:00:00.000Z", publicationStatus: "CONFIRMED", confirmationUrl: "https://produto.test/confirmar?token=private", nextStep: "SHARE_CONFIRMATION" };
+    const confirmationUrl = `https://produto.test/confirmar#${"a".repeat(43)}`;
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    const real = { receivableId: "real-1", draftId: "draft-1", privateStatus: "AWAITING_CLIENT", originationStatus: "PUBLISHED", canonicalSource: "LRP", title: "Salário internacional real", nominalUsdCents: "250000", dueAt: "2026-08-20T12:00:00.000Z", publicationStatus: "CONFIRMED", confirmationUrl, nextStep: "SHARE_CONFIRMATION" };
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       return url === "/api/auth/session"
@@ -46,7 +49,12 @@ describe("AuthenticatedDashboard", () => {
     });
     render(<AuthenticatedDashboard lrpMode="LRP" />);
     expect(await screen.findByText("Salário internacional real")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /enviar confirmação ao pagador/i })).toHaveAttribute("href", "/recebivel");
+    const open = screen.getByRole("link", { name: /enviar confirmação ao pagador/i });
+    expect(open).toHaveAttribute("href", confirmationUrl);
+    expect(open).toHaveAttribute("target", "_blank");
+    fireEvent.click(screen.getByRole("button", { name: /copiar link de confirmação/i }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(confirmationUrl));
+    expect(screen.getByRole("button", { name: /link copiado/i })).toBeVisible();
     expect(screen.getByText(/aportes ainda não estão disponíveis/i)).toBeInTheDocument();
     expect(screen.queryByText("Somente no navegador")).not.toBeInTheDocument();
     expect(screen.queryByText(publicPools[0]!.title)).not.toBeInTheDocument();

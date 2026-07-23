@@ -128,6 +128,13 @@ export async function connectNwcAuthorization<THKT extends PgQueryResultHKT>(
   const encryptedConnectionMetadata = input.protectRelayMetadata ? encryptNwcPrivateMetadata(connection.relayUrls) : null;
   const fingerprint = fingerprintNwcConnection(connection);
   await db.transaction(async (tx) => {
+    const [conflicting] = await tx.select({ authorizationId: nwcConnections.authorizationId })
+      .from(nwcConnections)
+      .where(eq(nwcConnections.connectionFingerprint, fingerprint))
+      .limit(1);
+    if (conflicting && conflicting.authorizationId !== authorization.id) {
+      throw new DomainError("Esta carteira NWC já está conectada a outra autorização.", "NWC_CONNECTION_ALREADY_IN_USE");
+    }
     await tx.insert(nwcConnections).values({
       id: randomUUID(), authorizationId: authorization.id,
       walletServicePubkey: connection.walletServicePubkey,
