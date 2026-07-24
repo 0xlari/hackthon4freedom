@@ -1,17 +1,21 @@
 # Nostr e reputação
 
+> **Estado:** implementado (login NIP-07); planejado (eventos de reputação dimensionais).
+>
+> Este documento descreve a plataforma **Elas Recebem Hoje**. O protocolo **LRP** é especificado separadamente em `docs/protocol/`.
+
 ## Objetivo
 
 Permitir que participantes carreguem evidências assinadas de histórico sem publicar documentos ou transformar uma pontuação central em verdade universal. O banco interno continua necessário para autorização, privacidade, contestação e cálculo contextual.
 
 ## Identidade e assinatura
 
-- O acesso à plataforma usa LNURL-auth; Nostr não é login.
-- A plataforma associa a reputação a um `reputation_id` aleatório, separado da linking key LNURL-auth e do endereço Lightning.
-- Participantes não precisam fornecer pubkey, signer ou `nsec` Nostr.
-- Android poderá usar NIP-55 futuramente.
-- A plataforma nunca solicita, recebe, registra ou recupera `nsec`.
-- A identidade institucional da plataforma assina atestados emitidos por suas regras.
+- O login ativo da plataforma usa **NIP-07** (signer de navegador). A pubkey Nostr da sessão é a identidade principal da participante.
+- A mesma pubkey da sessão assina os eventos públicos da prestadora: `ReceivableCreated` e `PoolCreated`.
+- A plataforma nunca solicita, recebe, registra ou recupera `nsec`, seed ou mnemonic.
+- LNURL-auth permanece somente como backend legado, não exposto na interface de login.
+- O signer institucional do cliente originador é distinto da pubkey da prestadora: é pré-configurado por variável de ambiente e assina `PayerCommitmentProof`, `ClientValidationDecision` e `NwcAuthorizationAttestation`.
+- NIP-55 (aplicativo assinador no Android) é uma possibilidade futura, claramente não implementada no produto atual.
 
 ## Modelo de reputação dimensional
 
@@ -34,17 +38,14 @@ Cada fato registra emissor, relação com a operação, momento, fonte, validade
 
 | NIP | Uso | Decisão e limitações |
 |---|---|---|
-| NIP-01 | Evento, assinatura e referências | Obrigatória; não define semântica de reputação. |
-| NIP-07 | Signer de navegador | Fora do acesso e do fluxo obrigatório da participante. |
-| NIP-46 | Signer remoto | Pode operar o signer institucional externo; nunca recebe `nsec` da participante. |
-| NIP-98 | Autorização HTTP assinada | Fora do login do MVP, substituído por LNURL-auth. |
-| NIP-32 | Labels | Avaliada; útil para rótulos, mas pode facilitar abuso e tem semântica insuficiente para crédito. Não será base única. |
-| NIP-58 | Badges | Escolhida apenas para conquistas positivas; badge não representa risco financeiro. |
-| NIP-85 | Trusted Assertions | Avaliada; o draft atual enumera métricas de terceiros e não define os fatos operacionais deste produto. Não será usado no MVP. |
-| NIP-09 | Pedido de exclusão | Suporta correção social, mas relays podem manter cópias; não promete apagamento. |
-| NIP-40 | Expiração | Útil para sinais temporários; relays podem não apagar imediatamente. |
-| NIP-42 | Autenticação em relay | Útil em relay controlado; não substitui autorização da aplicação. |
-| NIP-65 | Lista de relays | Útil para descoberta; requer fallback configurado. |
+| NIP-01 | Eventos, assinaturas e referências | Base obrigatória dos eventos públicos do LRP; não define sozinho a semântica de reputação. |
+| NIP-07 | Signer de navegador | Implementado e obrigatório para login e assinatura dos eventos da prestadora. |
+| NIP-46 | Signer remoto | Planejado para signers externos; não implementado no produto atual. |
+| NIP-98 | Autorização HTTP assinada | Avaliado, mas não adotado como mecanismo de login do MVP. |
+| NIP-32 | Labels | Avaliado; não será fonte única de reputação ou risco. |
+| NIP-58 | Badges | Planejado somente para conquistas positivas. |
+| NIP-85 | Trusted Assertions | Avaliado; não adotado no MVP atual. |
+| NIP-09 | Pedido de exclusão | Pode solicitar exclusão, sem garantia de remoção pelos relays. |
 
 Decisão do MVP: evento de aplicação addressable `kind 30078`, com schema versionado `erh.reputation.v1`. O `d` inclui `reputation_id` pseudônimo, tipo de fato e referência opaca da operação, preservando correções append-only. Eventos desconhecidos podem ser ignorados por outros clientes; o espelho interno permanece a fonte para autorização e contestação.
 
@@ -85,7 +86,7 @@ Nostr é append-only na prática. Uma correção publica novo evento assinado re
 
 ## Portabilidade e Sybil
 
-O `reputation_id` pode ser compartilhado voluntariamente, mas não autentica a conta e não revela a linking key da carteira. Criar carteiras é barato, então a plataforma não concede limite relevante apenas por autenticar uma chave. Sinais ganham peso quando emitidos por fontes reconhecidas, ligados a operações reais e acumulados ao longo do tempo.
+O `reputation_id` pode ser compartilhado voluntariamente como referência interna, mas não substitui a identidade Nostr nem revela chaves privadas. Criar identidades Nostr é barato, por isso a plataforma não concede limite relevante apenas pela posse de uma pubkey. Os sinais ganham peso quando são emitidos por autoridades reconhecidas, vinculados a operações reais e acumulados ao longo do tempo.
 
 ## Referência
 
