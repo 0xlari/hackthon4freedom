@@ -30,7 +30,8 @@ const privateStatusLabels: Record<string, string> = {
 
 function nextAction(item: LrpProductReceivable) {
   if (item.nextStep === "VIEW_POOL" && item.pool) return { href: `/pools/${item.pool.poolId}`, label: "Ver pool" };
-  if (item.nextStep === "CREATE_POOL" || item.nextStep === "REVIEW_POOL") return { href: "/painel#criar-pool", label: "Revisar e criar pool" };
+  if (item.nextStep === "CREATE_POOL") return { href: "#criar-pool", label: "Revisar termos e criar pool" };
+  if (item.nextStep === "REVIEW_POOL") return { href: "#criar-pool", label: "Revisar e criar pool" };
   if (item.nextStep === "AWAIT_REVIEW") return { href: "/recebivel", label: "Acompanhar análise" };
   if (item.nextStep === "SHARE_CONFIRMATION" || item.nextStep === "AWAIT_PAYER") return { href: "/recebivel", label: "Abrir recebível" };
   return { href: "/recebivel", label: "Continuar recebível" };
@@ -54,6 +55,7 @@ export function AuthenticatedDashboard({ lrpMode = "LEGACY" }: { lrpMode?: LrpOr
   const [productMode, setProductMode] = useState<LrpOriginationMode>(lrpMode);
   const [productSourceResolved, setProductSourceResolved] = useState(false);
   const [confirmationCopied, setConfirmationCopied] = useState(false);
+  const [poolOverrides, setPoolOverrides] = useState<Record<string, LrpProductReceivable["pool"]>>({});
   const router = useRouter();
 
   useEffect(() => {
@@ -159,11 +161,21 @@ export function AuthenticatedDashboard({ lrpMode = "LEGACY" }: { lrpMode?: LrpOr
         </article>
       </section>
 
-      {productMode === "LRP" ? <LrpPoolCreation mode="LRP" /> : null}
-
       <section className="profile-history" aria-label="Seu histórico na plataforma">
         <article>
-          <div><span className="kicker">Meus recebíveis</span>{productMode === "LRP" ? lrpHistoryState === "unavailable" ? <><h2>Histórico indisponível</h2><p>Não foi possível carregar seu histórico agora. Nenhum dado local foi usado como substituto.</p></> : lrpHistoryState !== "ready" ? <><h2>Carregando seu histórico</h2><p>Consultando os registros da plataforma.</p></> : lrpJourney.history.length ? <div className="profile-items">{lrpJourney.history.map((item) => <div key={item.receivableId}><strong>{item.title}</strong><span>US$ {(Number(item.nominalUsdCents) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} · {privateStatusLabels[item.privateStatus] ?? "Status em atualização"}</span></div>)}</div> : <><h2>Você pode criar seu primeiro recebível</h2><p>Cadastre um pagamento internacional para iniciar a análise.</p></> : receivables.length ? <div className="profile-items">{receivables.map((item) => <div key={item.id}><strong>{item.description}</strong><span>US$ {item.amountUsd.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} · {item.status === "AWAITING_CLIENT" ? "aguardando pagador" : item.status === "UNDER_REVIEW" ? "em avaliação" : item.status === "POOLED" ? "pool criada" : item.status.toLowerCase()}</span></div>)}</div> : <><h2>Nenhum recebível ativo</h2><p>Você pode manter um recebível ativo por vez. Ao concluir, cancelar ou ter a solicitação rejeitada, poderá criar outro.</p></>}</div>
+          <div><span className="kicker">Meus recebíveis</span>{productMode === "LRP" ? lrpHistoryState === "unavailable" ? <><h2>Histórico indisponível</h2><p>Não foi possível carregar seu histórico agora. Nenhum dado local foi usado como substituto.</p></> : lrpHistoryState !== "ready" ? <><h2>Carregando seu histórico</h2><p>Consultando os registros da plataforma.</p></> : lrpJourney.history.length ? <div className="profile-items">{lrpJourney.history
+            .filter((item) => item.privateStatus !== "REJECTED")
+            .map((item) => {
+              const pool = poolOverrides[item.receivableId] ?? item.pool;
+              const showPoolCreation = item.privateStatus === "APPROVED" || (pool && (pool.status === "TERMS_READY" || pool.status === "CANDIDATE_READY" || pool.status === "PUBLICATION_PENDING" || pool.status === "PUBLISHED" || pool.status === "PROJECTION_PENDING"));
+              const action = pool ? { href: `/pools/${pool.poolId}`, label: "Ver pool" } : nextAction(item);
+              return <div key={item.receivableId} id={item.receivableId}>
+                <strong>{item.title}</strong>
+                <span>US$ {(Number(item.nominalUsdCents) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} · {pool && (pool.status === "PUBLISHED" || pool.status === "PROJECTION_PENDING") ? "Pool criada" : privateStatusLabels[item.privateStatus] ?? "Status em atualização"}</span>
+                {showPoolCreation ? <LrpPoolCreation mode="LRP" receivableId={item.receivableId} pool={pool} onPublished={(published) => setPoolOverrides((current) => ({ ...current, [item.receivableId]: published }))} /> : pool ? <a className="button button--secondary" href={action.href}>{action.label}</a> : null}
+              </div>;
+            })}
+          </div> : <><h2>Você pode criar seu primeiro recebível</h2><p>Cadastre um pagamento internacional para iniciar a análise.</p></> : receivables.length ? <div className="profile-items">{receivables.map((item) => <div key={item.id}><strong>{item.description}</strong><span>US$ {item.amountUsd.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} · {item.status === "AWAITING_CLIENT" ? "aguardando pagador" : item.status === "UNDER_REVIEW" ? "em avaliação" : item.status === "POOLED" ? "pool criada" : item.status.toLowerCase()}</span></div>)}</div> : <><h2>Nenhum recebível ativo</h2><p>Você pode manter um recebível ativo por vez. Ao concluir, cancelar ou ter a solicitação rejeitada, poderá criar outro.</p></>}</div>
           {productMode === "LRP"
             ? lrpHistoryState === "ready"
               ? lrpJourney.active
@@ -172,7 +184,7 @@ export function AuthenticatedDashboard({ lrpMode = "LEGACY" }: { lrpMode?: LrpOr
                     <button className="button button--secondary" type="button" onClick={() => { void navigator.clipboard.writeText(lrpJourney.active!.confirmationUrl!).then(() => setConfirmationCopied(true)); }}><Copy size={17} /> {confirmationCopied ? "Link copiado" : "Copiar link de confirmação"}</button>
                     <a className="button button--primary" href={lrpJourney.active.confirmationUrl} target="_blank" rel="noreferrer">Enviar confirmação ao pagador <ExternalLink size={17} /></a>
                   </div>
-                  : <ButtonLink href={nextAction(lrpJourney.active).href} variant="secondary">{nextAction(lrpJourney.active).label}</ButtonLink>
+                  : null
                 : <ButtonLink href="/recebivel" variant="secondary">Criar recebível</ButtonLink>
               : null
             : <ButtonLink href={receivables.some((item) => item.status === "UNDER_REVIEW") ? "/administracao" : "/recebivel"} variant="secondary">{receivables.some((item) => item.status === "UNDER_REVIEW") ? "Abrir avaliação" : "Criar recebível"}</ButtonLink>}
