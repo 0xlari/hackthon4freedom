@@ -53,7 +53,7 @@ Demonstrar que um pagamento legítimo devido a uma pessoa no Brasil por um pagad
 - RF-12: calcular meta da pool a partir do valor nominal e desconto de até 5%.
 - RF-13: criar exatamente uma pool Full BTC para cada recebível aprovado; USDt fica fora do produto atual.
 - RF-14: exibir modalidade, meta, prazo, progresso, custos, retorno estimado e riscos.
-- RF-15: criar um contrato DLC bilateral por aporte, financiado sem transferir custódia à plataforma, com execução por atestação do oráculo e reembolso por timelock.
+- RF-15: criar um contrato DLC bilateral por aporte, financiado sem transferir custódia à plataforma, com execução por atestação do oráculo e reembolso por timelock. **Estado: planejado — DLC permanece simulado no MVP.**
 - RF-16: aceitar múltiplos aportes até a meta, impedindo sobre-financiamento.
 - RF-17: se o prazo terminar parcialmente financiado, permitir à solicitante aceitar o parcial ou devolver todos os aportes.
 - RF-17A: fornecer URL pública opaca e botão de compartilhamento por WhatsApp sem PII, documentos ou dados reconstruíveis do pagador.
@@ -137,6 +137,39 @@ USDt/Liquid permanece apenas como pesquisa de roadmap. DLC mainnet, carteira con
 
 ## Pagamento do pagador no vencimento
 
-Depois de confirmar o recebível e aceitar BTC, o pagador escolhe independentemente entre NWC automático opcional ou Lightning manual com qualquer carteira. NWC não é login e permanece separado da identidade Nostr usada pela prestadora.
+> **Estado:** implementado (conexão NWC, vínculo ao recebível, validação de `pay_invoice`, armazenamento cifrado, revogação local, uso único, atestado público); controlado (validação sem execução real com `NWC_ENABLE_LIVE=false`); planejado (scheduler de vencimento, cobrança automática real, retries, reconciliação).
 
-A plataforma valida `pay_invoice`, protege o secret e aplica vencimento, valor, tarifa, expiração, revogação e uso único. A conexão não garante saldo, rota, disponibilidade ou pagamento futuro. Falha definitiva apresenta a mesma invoice para pagamento manual; resultado desconhecido aguarda conciliação e nunca dispara retry automático. O modo atual executa o worker somente com gateways simulados.
+Depois de confirmar o recebível e aceitar BTC, o pagador conecta sua carteira via NWC para autorizar previamente o pagamento no vencimento. NWC não é login e permanece separado da identidade Nostr usada pela prestadora.
+
+Na versão `lrp/0.1.0`, uma `NwcAuthorizationAttestation` ativa é requisito do grafo para a publicação de `PoolCreated`. A implementação de referência Elas Recebem Hoje aplica essa regra exigindo que o pagador autorize previamente o pagamento via NWC. O caminho de pagamento manual permanece disponível como fallback operacional, mas não produz `NwcAuthorizationAttestation` e, portanto, na versão `lrp/0.1.0`, não libera `PoolCreated`.
+
+A plataforma valida `pay_invoice`, protege o secret com criptografia AES-256-GCM e aplica limite máximo, validade, revogação local e uso único. A conexão não garante saldo, rota, disponibilidade ou pagamento futuro.
+
+**Implementado:**
+
+- conexão da carteira por NWC;
+- vínculo da autorização ao recebível;
+- armazenamento cifrado dos dados privados da conexão;
+- limite máximo e validade da autorização;
+- verificação de `pay_invoice`;
+- revogação local da autorização na plataforma; a permissão remota na carteira não é revogada automaticamente por NWC;
+- uso único da autorização;
+- publicação do `NwcAuthorizationAttestation` pelo originador;
+- `NwcAuthorizationAttestation` ativa como requisito do grafo para `PoolCreated` na versão `lrp/0.1.0`.
+
+**Modo controlado (`NWC_ENABLE_LIVE=false`):**
+
+- nenhuma cobrança real é executada;
+- a conexão e a autorização são registradas e validadas para demonstrar o fluxo;
+- a criação da pool não movimenta fundos;
+- a validação utiliza um gateway controlado (fake).
+
+**Planejado ou experimental:**
+
+- scheduler que identifica o vencimento e dispara a cobrança;
+- criação de invoice real;
+- execução real de `pay_invoice` via `RelayNwcGateway`;
+- retries, reconciliação e tratamento de estado de pagamento desconhecido;
+- cobrança automática real no vencimento.
+
+Conectar a carteira NWC não movimenta fundos. A autorização é um compromisso prévio do pagador; a execução do pagamento depende do scheduler, que ainda não está conectado ao fluxo principal da aplicação.

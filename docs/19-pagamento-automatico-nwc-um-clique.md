@@ -1,24 +1,35 @@
 # Pagamento automático com NWC e conexão de um clique
 
+> **Estado:** implementado (conexão NWC, vínculo ao recebível, validação de `pay_invoice`, armazenamento cifrado, revogação local, uso único, atestado público, `NwcAuthorizationAttestation` ativa como requisito do grafo para `PoolCreated` na versão `lrp/0.1.0`); controlado (`NWC_ENABLE_LIVE=false` — sem execução real de `pay_invoice`); planejado (scheduler de vencimento, cobrança automática real, retries, reconciliação, tratamento de pagamento desconhecido).
+>
+> Este documento descreve a plataforma **Elas Recebem Hoje**. O protocolo **LRP** é especificado em `docs/protocol/`.
+
 ## Estado da proposta
 
-**Proposta para discussão — ainda não é uma decisão de produto nem uma autorização para operar pagamentos em mainnet.**
+**Implementado no fluxo principal do MVP LRP. Na versão `lrp/0.1.0`, uma `NwcAuthorizationAttestation` ativa é requisito do grafo para a publicação de `PoolCreated`. A implementação de referência Elas Recebem Hoje aplica essa regra exigindo que o pagador autorize previamente o pagamento via NWC.**
 
-Este documento propõe um modo mais simples de o cliente autorizar o pagamento futuro de um recebível em Bitcoin via Lightning. A experiência principal não deve pedir que uma pessoa encontre, copie ou cole uma URI NWC.
+A autorização NWC não deve ser descrita apenas como um requisito técnico: o pagador conecta sua carteira para autorizar previamente o pagamento do recebível no vencimento. Essa autorização fornece a garantia operacional necessária para que o originador publique o `NwcAuthorizationAttestation` e para que a prestadora possa publicar o `PoolCreated`. O caminho de pagamento manual não produz `NwcAuthorizationAttestation` e, portanto, na versão `lrp/0.1.0`, não libera `PoolCreated`.
+
+A execução real de `pay_invoice` permanece **planejada**: no modo controlado atual (`NWC_ENABLE_LIVE=false`), nenhuma cobrança real é executada. A compatibilidade live com diferentes carteiras permanece experimental.
+
+Este documento permanece como referência de UX e direção de produto para a conexão de um clique.
 
 ## Resumo executivo
 
-A melhor direção é usar **Nostr Wallet Connect (NWC) com conexão de um clique**:
+A direção adotada usa **Nostr Wallet Connect (NWC)**:
 
 1. O cliente confirma que o recebível existe.
-2. Clica em **Ativar pagamento automático**.
+2. Conecta sua carteira Lightning via NWC para autorizar previamente o pagamento no vencimento.
 3. A plataforma abre uma carteira compatível ou apresenta um seletor de carteiras.
 4. A própria carteira mostra exatamente o que será autorizado.
 5. O cliente aprova uma única vez.
-6. Na data combinada, a plataforma envia à carteira um pedido NWC para pagar a invoice Lightning.
-7. Se o pagamento automático falhar, o cliente recebe uma invoice para pagar manualmente.
+6. **Implementado:** a autorização NWC é validada, cifrada e publicada como `NwcAuthorizationAttestation` pelo originador. Na versão `lrp/0.1.0`, uma `NwcAuthorizationAttestation` ativa é requisito do grafo para a publicação de `PoolCreated`. A prestadora assina `PoolCreated` somente após essa publicação. O pagamento manual não produz `NwcAuthorizationAttestation` e, portanto, não libera `PoolCreated`.
+7. **Planejado:** na data combinada, o scheduler deverá enviar à carteira um pedido NWC para pagar a invoice Lightning.
+8. **Planejado:** se o pagamento automático falhar, o cliente receberá uma invoice para pagar manualmente.
 
 A URI continua existindo tecnicamente, mas fica escondida no fluxo normal. Ela aparece somente em **Opções avançadas**, como compatibilidade para carteiras antigas.
+
+**Importante:** conectar a carteira não movimenta fundos. A autorização é um compromisso prévio do pagador. A execução do pagamento depende do scheduler, que ainda não está conectado ao fluxo principal da aplicação.
 
 Há uma restrição importante: **conectar a carteira em um clique não significa que qualquer carteira permitirá uma cobrança automática futura**. A carteira precisa suportar NWC, `pay_invoice` e uma autorização suficientemente limitada. A compatibilidade da carteira Evento ainda precisa ser confirmada; ela não aparece na lista pública de carteiras NWC consultada em julho de 2026.
 
@@ -120,6 +131,8 @@ Upload de uma imagem de QR pode existir como último recurso, mas não deve ser 
 
 ## Como o pagamento futuro acontece
 
+> **Estado:** a conexão e a autorização NWC estão implementadas. A execução de `pay_invoice` no vencimento está planejada e depende do scheduler.
+
 ```mermaid
 sequenceDiagram
     participant C as Cliente
@@ -127,24 +140,26 @@ sequenceDiagram
     participant W as Carteira Lightning
 
     C->>P: Confirma o recebível
-    C->>P: Clica em conectar carteira
+    C->>P: Conecta carteira via NWC
     P->>W: Abre deep link, redirect ou mostra QR
     W->>C: Mostra limites e permissões
     C->>W: Aprova uma vez
     W-->>P: Retorna a conexão NWC
-    P-->>C: Pagamento programado
-    Note over P,W: No vencimento
+    P-->>C: Autorização registrada e validada
+    Note over P: Originador publica NwcAuthorizationAttestation
+    Note over P: Prestadora assina e publica PoolCreated
+    Note over P,W: No vencimento (planejado)
     P->>W: pay_invoice dentro do limite
     alt Pago
         W-->>P: Preimage e confirmação
         P-->>C: Pagamento concluído
-    else Falhou ou autorização expirou
+    else Falhou ou autorização expirada
         W-->>P: Erro
         P-->>C: Invoice e aviso para pagamento manual
     end
 ```
 
-NWC não retira o dinheiro no momento da conexão. No vencimento, a plataforma cria ou obtém a invoice correta e envia um pedido `pay_invoice`, criptografado pelo protocolo, à carteira conectada.
+NWC não retira o dinheiro no momento da conexão. A autorização é registrada, validada e publicada como atestado público. No vencimento, o scheduler planejado deverá criar ou obter a invoice correta e enviar um pedido `pay_invoice`, criptografado pelo protocolo, à carteira conectada. No modo controlado atual (`NWC_ENABLE_LIVE=false`), nenhuma dessas etapas executa pagamentos reais.
 
 ## O problema mais importante: o valor em sats ainda não é conhecido
 
@@ -176,23 +191,28 @@ Se o teto não for suficiente porque o BTC caiu muito, o sistema não cobra parc
 
 ## Contrato mínimo da autorização
 
-Cada autorização deve pertencer a um único recebível e conter:
+> **Estado:** implementado no código e aplicado pela plataforma.
 
-| Controle | Regra proposta |
-|---|---|
-| Permissão | Somente `pay_invoice` |
-| Uso | Uma cobrança bem-sucedida |
-| Valor | Teto máximo em sats |
-| Taxa | Teto separado em sats |
-| Janela | Próxima ao vencimento |
-| Expiração | Pouco depois do vencimento |
-| Repetição | Idempotência por recebível |
-| Revogação | Disponível ao cliente a qualquer momento |
-| Dados | Sem acesso ao saldo ou histórico |
+Cada autorização pertence a um único recebível e contém:
 
-Esses controles devem ser aplicados pela plataforma mesmo quando a carteira não oferecer todos eles. Quando houver suporte da carteira a orçamento e expiração, devemos aplicar os limites nos dois lados.
+| Controle | Regra | Estado |
+|---|---|---|
+| Permissão | Somente `pay_invoice` | Implementado |
+| Uso | Uma cobrança bem-sucedida (uso único) | Implementado |
+| Valor | Teto máximo em sats (`maxAmountMsat`) | Implementado |
+| Taxa | Teto separado em sats (`maxFeeMsat`) | Implementado |
+| Janela | Próxima ao vencimento (`scheduledFor`) | Implementado |
+| Expiração | Pouco depois do vencimento (`expiresAt`) | Implementado |
+| Repetição | Idempotência por recebível | Implementado |
+| Revogação local na plataforma | Disponível ao cliente; marca a autorização e a conexão como REVOKED no banco, mas não revoga automaticamente a permissão remota na carteira | Implementado |
+| Dados | Sem acesso ao saldo ou histórico | Implementado |
+| Armazenamento cifrado | AES-256-GCM com chave de 32 bytes | Implementado |
+| Atestado público | `NwcAuthorizationAttestation` com fingerprint segura | Implementado |
+| Execução real de `pay_invoice` no vencimento | Via scheduler | Planejado |
 
 ## O que pode falhar
+
+> **Estado:** o tratamento de falhas no vencimento está planejado; o worker existe mas usa gateways simulados.
 
 Pagamento programado não pode ser prometido como garantia. No vencimento, a carteira pode estar:
 
@@ -203,9 +223,9 @@ Pagamento programado não pode ser prometido como garantia. No vencimento, a car
 - sem rota Lightning adequada;
 - incompatível com a operação solicitada.
 
-Por isso o produto precisa de:
+Por isso o produto precisa de (planejado):
 
-1. tentativas idempotentes e limitadas;
+1. scheduler que identifica o vencimento e dispara tentativas idempotentes e limitadas;
 2. aviso imediato ao cliente;
 3. invoice manual como fallback;
 4. estado visível para a recebedora e para a administração;
@@ -225,16 +245,22 @@ Por isso o produto precisa de:
 
 ## Recomendação de implementação
 
-### Para o hackathon
+### Para o hackathon — implementado
 
-1. Integrar **Bitcoin Connect** ou um componente equivalente de conexão NWC.
-2. Mostrar **Conectar minha carteira** como ação principal.
-3. Oferecer deep link/callback quando a carteira suportar.
-4. Mostrar QR de pareamento no computador para leitura pela carteira no celular.
-5. Esconder a URI em **Opções avançadas**.
-6. Manter invoice manual como fallback.
-7. Começar com uma lista pequena de carteiras comprovadamente compatíveis.
-8. Não anunciar compatibilidade com a Evento antes de testar ou obter confirmação técnica do fornecedor.
+1. **Implementado:** conexão NWC com validação de `pay_invoice`, limite, validade, revogação local na plataforma e uso único.
+2. **Implementado:** armazenamento cifrado da conexão (AES-256-GCM).
+3. **Implementado:** publicação do `NwcAuthorizationAttestation` pelo originador.
+4. **Implementado:** `NwcAuthorizationAttestation` ativa como requisito do grafo para `PoolCreated` na versão `lrp/0.1.0`.
+5. **Implementado:** modo controlado com `NWC_ENABLE_LIVE=false` (gateway fake).
+
+### Para o hackathon — pendente
+
+6. Integrar **Bitcoin Connect** ou componente equivalente para conexão de um clique.
+7. Mostrar **Conectar minha carteira** como ação principal.
+8. Oferecer deep link/callback quando a carteira suportar.
+9. Mostrar QR de pareamento no computador para leitura pela carteira no celular.
+10. Esconder a URI em **Opções avançadas**.
+11. Não anunciar compatibilidade com carteiras antes de testar.
 
 ### Depois do hackathon
 

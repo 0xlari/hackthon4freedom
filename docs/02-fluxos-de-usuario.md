@@ -1,5 +1,9 @@
 # Fluxos de usuário
 
+> **Estado:** implementado (login NIP-07, criação do recebível, confirmação do pagador, validação, NWC, publicação da pool, projeções); controlado (NWC sem execução real com `NWC_ENABLE_LIVE=false`); planejado (aportes reais, scheduler de pagamento, distribuição, cobrança automática).
+>
+> Este documento descreve a plataforma **Elas Recebem Hoje**. O protocolo **LRP** é especificado em `docs/protocol/`.
+
 ## Fluxo principal
 
 ```mermaid
@@ -12,18 +16,20 @@ flowchart TD
   F --> G{"Aprovado?"}
   G -- "Correção" --> B
   G -- "Recusado" --> H["Solicitação encerrada"]
-  G -- "Sim" --> I["Pool criada"]
-  I --> J["Aportes Lightning"]
-  J --> K{"Meta atingida no prazo?"}
-  K -- "Sim" --> L["Antecipação liberada"]
-  K -- "Parcial" --> M{"Solicitante aceita?"}
-  M -- "Não" --> N["Reembolso"]
-  M -- "Sim" --> L
-  L --> O["Pagador recebe link de pagamento"]
-  O --> P{"Pagamento confirmado?"}
-  P -- "Sim" --> Q["Distribuição e reputação"]
-  P -- "Não" --> R["Cobertura limitada e recuperação"]
-  R --> Q
+  G -- "Sim" --> I["Pagador conecta carteira via NWC"]
+  I --> J["Originador publica NwcAuthorizationAttestation"]
+  J --> K["Prestadora assina e publica PoolCreated"]
+  K --> L["Aportes Lightning"]
+  L --> M{"Meta atingida no prazo?"}
+  M -- "Sim" --> N["Antecipação liberada"]
+  M -- "Parcial" --> O{"Solicitante aceita?"}
+  O -- "Não" --> P["Reembolso"]
+  O -- "Sim" --> N
+  N --> Q["Pagador recebe link de pagamento"]
+  Q --> R{"Pagamento confirmado?"}
+  R -- "Sim" --> S["Distribuição e reputação"]
+  R -- "Não" --> T["Cobertura limitada e recuperação"]
+  T --> S
 ```
 
 ## Jornada da solicitante
@@ -54,9 +60,10 @@ A aportadora não vê documentos brutos, não confirma autenticidade e não apro
 1. Recebe link de confirmação com token expirável.
 2. Confirma ou contesta serviço, valor e data e informa se aceita pagar em BTC.
 3. Se não aceitar BTC, a solicitação é encerrada como inelegível e nenhuma pool é criada.
-4. Próximo ao vencimento, recebe link de pagamento Lightning com moeda original de referência, cotação, valor em sats e validade.
-5. Paga a invoice em BTC; a plataforma não recebe moeda fiat.
-6. A pontualidade atualiza seu histórico; atraso ou inadimplência aciona lembretes, cobertura e recuperação.
+4. Conecta sua carteira Lightning via NWC para autorizar previamente o pagamento no vencimento. A autorização é vinculada ao recebível, limitada ao valor máximo, compatível com `pay_invoice`, com validade definida, armazenada de forma cifrada, revogável localmente na plataforma e de uso único. A revogação local marca a autorização e a conexão como REVOKED no banco da plataforma, mas não revoga automaticamente a permissão remota na carteira do pagador. O pagador precisa revogá-la diretamente na carteira quando quiser encerrar também a permissão remota.
+5. Na versão `lrp/0.1.0`, uma `NwcAuthorizationAttestation` ativa é requisito do grafo para a publicação de `PoolCreated`. A implementação de referência Elas Recebem Hoje aplica essa regra exigindo que o pagador autorize previamente o pagamento via NWC. O caminho de pagamento manual não produz `NwcAuthorizationAttestation` e, portanto, na versão `lrp/0.1.0`, não libera `PoolCreated`.
+6. No vencimento, o scheduler planejado deverá criar a invoice e executar `pay_invoice` via NWC. No modo controlado atual (`NWC_ENABLE_LIVE=false`), nenhuma cobrança real é executada.
+7. A pontualidade atualiza seu histórico; atraso ou inadimplência aciona cobertura e recuperação — funcionalidades planejadas, ainda não implementadas.
 
 ## Jornada cambial
 
