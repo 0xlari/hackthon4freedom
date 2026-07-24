@@ -100,4 +100,30 @@ describe("payer payment repository", () => {
       publicId: created.publicId, managementToken: created.managementToken, nwcUri, now,
     })).rejects.toThrow(/pay_invoice/);
   });
+
+  it("rejects reusing the same NWC wallet on a second authorization", async () => {
+    const rawTokenA = "P".repeat(43);
+    const rawTokenB = "Q".repeat(43);
+    const reusePubkey = "3".repeat(64);
+    const reuseSecret = "4".repeat(64);
+    const reuseUri = `nostr+walletconnect://${reusePubkey}?relay=${encodeURIComponent("wss://relay.example.com")}&secret=${reuseSecret}`;
+    await seedReceivable("receivable-reuse-a", "confirmation-reuse-a", rawTokenA);
+    await seedReceivable("receivable-reuse-b", "confirmation-reuse-b", rawTokenB);
+    const a = await createPayerPaymentAuthorization(db, {
+      receivableId: "receivable-reuse-a", rawConfirmationToken: rawTokenA,
+      method: "NWC_AUTOMATIC", maxAmountMsat: 50_000_000n, maxFeeMsat: 100_000n, now,
+    });
+    await connectNwcAuthorization(db, new FakeNwcGateway(), {
+      publicId: a.publicId, managementToken: a.managementToken, nwcUri: reuseUri, now,
+    });
+    const b = await createPayerPaymentAuthorization(db, {
+      receivableId: "receivable-reuse-b", rawConfirmationToken: rawTokenB,
+      method: "NWC_AUTOMATIC", maxAmountMsat: 50_000_000n, maxFeeMsat: 100_000n, now,
+    });
+    await expect(connectNwcAuthorization(db, new FakeNwcGateway(), {
+      publicId: b.publicId, managementToken: b.managementToken, nwcUri: reuseUri, now,
+    })).rejects.toThrow(/já está conectada a outra autorização/);
+    const read = await readPayerPaymentAuthorization(db, b.publicId, b.managementToken);
+    expect(read.status).toBe("PENDING_CONNECTION");
+  });
 });

@@ -25,10 +25,11 @@ test("public navigation contains no redundant product pages", async ({ page }, t
   await expect(navigation.getByRole("link", { name: /demo|reputação|meu limite/i })).toHaveCount(0);
 });
 
-test("wallet access explains that authentication moves no sats", async ({ page }) => {
+test("product access uses Nostr without exposing LNURL authentication", async ({ page }) => {
   await page.goto("/entrar");
-  await expect(page.getByRole("heading", { name: /Entre com sua carteira/i })).toBeVisible();
-  await expect(page.getByText(/não movimenta sats/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Entre com sua identidade Nostr/i })).toBeVisible();
+  await expect(page.getByText(/chave privada permanece no assinador/i)).toBeVisible();
+  await expect(page.getByText(/LNURL|carteira Lightning|nsec/i)).toHaveCount(0);
 });
 
 test("pools are BTC-only and shareable", async ({ page }) => {
@@ -46,7 +47,7 @@ test("receivable page states the single-active rule", async ({ page }) => {
   await page.goto("/recebivel");
   await expect(page.getByRole("heading", { name: /Cadastre o pagamento/i })).toBeVisible();
   await expect(page.getByText(/somente um recebível ativo por vez/i)).toBeVisible();
-  await expect(page.getByRole("link", { name: /Entrar com a carteira/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Entrar com Nostr/i })).toBeVisible();
 });
 
 test("confirmation page rejects a missing one-time token", async ({ page }) => {
@@ -63,7 +64,14 @@ test("layout does not overflow the viewport", async ({ page }) => {
 
 test("hackathon demo completes receivable approval and contribution", async ({ page }) => {
   await page.route("**/api/auth/session", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ authenticated: true }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        authenticated: true,
+        profile: { id: "e2e-wallet-profile", label: "Carteira E2E" },
+      }),
+    });
   });
 
   await page.goto("/recebivel");

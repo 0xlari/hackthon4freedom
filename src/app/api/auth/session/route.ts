@@ -22,6 +22,7 @@ export async function GET(request: Request) {
       profile: {
         id: session.profileId,
         label: `Perfil ${session.profileId.slice(0, 8)}`,
+        nostrPubkey: session.nostrPubkey,
       },
     }, { headers: privateHeaders });
   } finally {

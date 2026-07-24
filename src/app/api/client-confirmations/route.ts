@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { currentLrpModePolicy } from "@/config/lrp-mode";
 import { databaseFromEnvironment } from "@/db/client";
 import {
   confirmReceivable,
   inspectClientConfirmation,
 } from "@/db/repositories/receivable-repository";
 import { DomainError } from "@/domain/errors";
+import { preparePayerCommitmentProof } from "@/services/lrp-payer-confirmation-service";
 
 export const runtime = "nodejs";
 
@@ -62,7 +64,20 @@ export async function POST(request: Request) {
       termsVersion: body.termsVersion,
       now,
     });
-    return NextResponse.json(result, { headers: privateHeaders });
+    const policy = currentLrpModePolicy();
+    if (policy.mode === "LEGACY" || result.outcome !== "ACCEPTED") {
+      return NextResponse.json(result, { headers: privateHeaders });
+    }
+    const prepared = await preparePayerCommitmentProof(bundle.db, {
+      receivableId: result.receivableId,
+      mode: policy.mode,
+      originatorPubkey: process.env.LRP_ORIGINATOR_PUBKEY?.trim().toLowerCase() || undefined,
+      now,
+    });
+    return NextResponse.json({
+      ...result,
+      lrp: { status: prepared.status, signatureRequired: prepared.status === "CANDIDATE_READY" },
+    }, { headers: privateHeaders });
   } catch (error) {
     const status = error instanceof DomainError ? 400 : error instanceof z.ZodError ? 400 : 500;
     const message =

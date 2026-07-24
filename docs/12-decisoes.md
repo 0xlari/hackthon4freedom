@@ -1,5 +1,13 @@
 # Registro de decisões
 
+## ADR-040 — criação de pool assinada pela prestadora no LRP
+
+- **Data:** 2026-07-21
+- **Status:** implementada atrás dos modos `LEGACY`, `SHADOW` e `LRP`
+- **Decisão:** `PoolCreated` somente é preparado após `ReceivableCreated`, `PayerCommitmentProof`, `ClientValidationDecision = APPROVED` e `NwcAuthorizationAttestation = ACTIVE`. O identificador canônico do atestado é `NwcAuthorizationAttestation`. Os termos são calculados pelo domínio financeiro, exibidos integralmente e vinculados a consentimento explícito antes da assinatura pela mesma pubkey de `ReceivableCreated`.
+- **Persistência:** a preparação privada e o hash dos termos ficam em `lrp_pool_originations`; em `LRP`, a pool privada só é aberta depois do quórum 2/3 e do vínculo imutável com o event ID. Em `SHADOW`, o legado continua canônico e o candidato não é publicado.
+- **Consequências:** retry reutiliza o mesmo evento assinado; alteração posterior dos termos, perda da autorização NWC, autoria divergente e segunda pool para o mesmo recebível são bloqueadas. Leitura de `/pools`, aportes, DLC, pagamentos reais e mainnet permanecem fora deste corte.
+
 ## ADR-039 — sessão e perfil separados por carteira
 
 - **Data:** 2026-07-19
@@ -242,23 +250,23 @@
 ## ADR-033 — acesso por carteira com LNURL-auth e reputação pseudônima
 
 - **Data:** 2026-07-16
-- **Status:** confirmada pela fundadora e implementada
+- **Status:** substituída pela ADR-045; infraestrutura preservada como legado
 - **Decisão:** cadastro e acesso usam exclusivamente LNURL-auth. A plataforma cria um desafio aleatório de 32 bytes, a carteira assina com uma chave secp256k1 derivada para o domínio e o backend cria uma sessão própria em cookie `HttpOnly`. A chave de vinculação é armazenada somente como hash e aponta para um `User` interno opaco com `reputation_id` aleatório. Endereço Lightning/BIP353 é destino privado de pagamento, não credencial. Nostr não participa do login: atestados positivos, mínimos e pseudônimos são assinados institucionalmente e publicados de forma assíncrona.
 - **Consequências:** `auth.agendacryptoo.com` é o host de produção recomendado e deve permanecer estável, pois carteiras derivam chaves diferentes por domínio. Localhost serve para testes internos; carteira em outro dispositivo exige callback HTTPS público. Desafios expiram em cinco minutos, são de uso único e possuem token de polling separado; sessões duram até 30 dias e podem ser revogadas. Uma nova carteira não vinculada cria outra conta; vínculo de carteira adicional e recuperação serão uma etapa própria. E-mail e Nostr signer pessoal deixam de ser requisitos de acesso. Falha de relay nunca bloqueia autenticação ou finanças.
 
 ## ADR-034 — Fedi opcional como canal comunitário e carteira interoperável
 
 - **Data:** 2026-07-17
-- **Status:** aprovada como plano de execução; implementação não iniciada
-- **Decisão:** o Fedi será um canal opcional de comunidade, descoberta e distribuição de pools aprovadas, além de uma das carteiras Lightning capazes de pagar invoices oficiais. O Fedi não valida recebíveis, não autoriza ações financeiras, não mantém o ledger, não calcula participações e não se torna dependência para abertura, financiamento, liquidação ou consulta de pools. O backend do Elas Recebem Hoje permanece como única fonte de verdade.
-- **Consequências:** a Etapa 10 criará páginas públicas sanitizadas com IDs opacos, compartilhamento por Fedi e outros canais e aporte por invoice compatível com qualquer carteira Lightning. Mensagens comunitárias nunca movimentam fundos ou alteram estados; integrações futuras mais profundas usam adapter e feature flag. Escopo, ordem, riscos, requisitos e aceite estão em `docs/18-fedi-comunidade-e-compartilhamento-de-pools.md`. Esta decisão não habilita mainnet nem autoriza movimentação financeira.
+- **Status:** cancelada pela ADR-044; implementação não iniciada
+- **Decisão histórica:** foi considerada uma integração opcional com Fedi para comunidade, descoberta e distribuição de pools.
+- **Consequências:** a proposta foi retirada integralmente antes de ser implementada. O documento de execução associado foi removido e o Fedi não integra o escopo atual nem o roadmap aprovado do MVP.
 
 ## ADR-035 — fluxo único, pools somente BTC e aportes não custodiais por DLC
 
 - **Data:** 2026-07-18
 - **Status:** confirmada pela fundadora; implementação incremental
 - **Decisão:** o produto atual terá somente pools Full BTC. USDt/Liquid deixa a interface e permanece apenas como pesquisa de roadmap. Cada aporte será financiado em um DLC bilateral entre aportadora e solicitante, com execução condicionada por atestação do oráculo da plataforma e transação de reembolso após timelock. Durante a abertura da pool, a plataforma não recebe nem controla os aportes. No vencimento, o pagamento do pagador pode passar por carteira transitória segregada somente durante a distribuição automática.
-- **Consequências:** o login LNURL-auth não assina DLC. A chave contratual precisa permanecer sob controle da aportadora, com backup e recuperação; a carteira externa apenas financia o endereço on-chain do contrato. DLC mainnet exige auditoria própria, custo mínimo economicamente viável, reembolso, indisponibilidade do oráculo e recuperação testados. O código USDt existente não é apagado silenciosamente, mas fica inacessível ao produto atual.
+- **Consequências:** o login Nostr não assina DLC. A chave contratual precisa permanecer sob controle da aportadora, com backup e recuperação; a carteira externa apenas financia o endereço on-chain do contrato. DLC mainnet exige auditoria própria, custo mínimo economicamente viável, reembolso, indisponibilidade do oráculo e recuperação testados. O código USDt existente não é apagado silenciosamente, mas fica inacessível ao produto atual.
 
 ## ADR-036 — painel único, recebível ativo único, cobertura do principal e compartilhamento público
 
@@ -281,9 +289,56 @@
 - **Decisão:** após confirmar o recebível, o pagador pode conectar Nostr Wallet Connect para uma solicitação automática única no vencimento ou escolher pagamento manual com qualquer carteira Lightning. NWC é autorização de pagamento, não login, conta Nostr ou assinatura LNURL-auth. O secret é cifrado no servidor e nunca retorna ao frontend; a plataforma aplica vencimento, valor máximo, tarifa, expiração, revogação e bloqueio após sucesso.
 - **Consequências:** `info` e `pay_invoice` seguem NIP-47 atrás de adapter. Saldo e pagamento futuro não são garantidos. Falha definitiva expõe a invoice manual sem nova cobrança; resultado desconhecido exige conciliação. `NWC_ENABLE_LIVE` fica desligado; testes e demo usam fakes sem fundos. A referência de sats antes da cotação final não é preço garantido.
 
-## ADR-039 — conexão NWC de um clique como experiência principal
+## ADR-040 — conexão NWC de um clique como experiência principal
 
 - **Data:** 2026-07-19
 - **Status:** experiência implementada; ativação financeira permanece não autorizada
 - **Decisão:** a conexão do pagador usa Bitcoin Connect filtrado para NWC, solicita somente `pay_invoice`, não consulta saldo e não persiste a conexão no navegador. No celular, a biblioteca pode abrir uma carteira compatível; entre computador e celular, apresenta o pareamento para leitura pela própria carteira. A conexão devolvida é enviada à API existente para validação e armazenamento cifrado. URI manual deixa a experiência principal e permanece somente em “Opções avançadas”, em campo do tipo senha. Pagamento manual continua disponível.
 - **Consequências:** a plataforma não promete automação para carteiras sem NWC ou que não devolvam uma credencial utilizável pelo executor agendado. A compatibilidade deve ser verificada por carteira e versão. O botão simplifica o pareamento, mas não remove limites, revogação, idempotência, fallback manual ou a necessidade de autorização operacional para mainnet. O desenho completo está em `docs/19-pagamento-automatico-nwc-um-clique.md`.
+
+## ADR-041 — eventos Nostr como fonte canônica do estado público
+
+- **Data:** 2026-07-20
+- **Status:** aprovada para implementação experimental da LRP v0.1; sem ativação financeira
+- **Contexto:** recebíveis e pools públicos hoje derivam de tabelas ou estado demonstrativo local, impedindo verificação e reconstrução independentes. A nova versão requer autoria portável, decisões de validação por cliente e projeções reproduzíveis.
+- **Decisão:** a pubkey e a assinatura Nostr determinam autoria dos eventos do Lightning Receivables Protocol (LRP). Eventos válidos e seu grafo tornam-se a fonte canônica do estado público; PostgreSQL permanece permitido para dados privados, sessões, NWC cifrado, scheduler, auditoria e cache reconstruível. A sessão Nostr NIP-07 vincula a conta à mesma pubkey usada pela prestadora nos eventos; LNURL-auth permanece somente como infraestrutura legada. Os kinds 8100–8114 são experimentais e versionados; somente sete tipos descritos em `docs/protocol/` serão aceitos na versão de eventos `lrp/0.1.0`. Decisões `APPROVED`, `REJECTED` e `NEEDS_INFORMATION` pertencem ao cliente que as assinou, permitindo que outro cliente avalie o mesmo recebível.
+- **Consequências:** esta decisão substitui, somente no protocolo experimental, a exclusividade de validação das ADR-002/025, a restrição de Nostr apenas à reputação das ADR-032/033 e a opcionalidade de NWC da ADR-038 para criação de pool. A experiência NWC da ADR-040 continua reutilizável. Nenhuma decisão habilita mainnet, pagamento, aporte, DLC ou publicação de dados privados. Cache, UI e banco serão migrados incrementalmente e o fluxo atual permanece até a projeção Nostr ser validada.
+
+## ADR-042 — concentração temporária de papéis no cliente originador
+
+- **Data:** 2026-07-20
+- **Status:** limitação aceita exclusivamente para a versão experimental do hackathon
+- **Contexto:** separar imediatamente todos os agentes impediria a entrega da vertical verificável no prazo, mas ocultar a concentração criaria uma falsa promessa de descentralização.
+- **Decisão:** na LRP v0.1, o cliente originador concentra validação, armazenamento NWC cifrado, contraparte do futuro DLC, executor NWC, carteira operacional, oráculo e coordenação da liquidação. Seus eventos são assinados, limitados por autoridade e auditáveis; segredos permanecem privados; pagamentos, DLC e mainnet continuam desabilitados. A interface e `PoolCreated` devem declarar essa concentração.
+- **Riscos e controles:** censura, indisponibilidade, conflito de interesse e contraparte única são riscos conhecidos. Controles mínimos são eventos verificáveis, três relays com quórum 2, dados minimizados, NWC revogável, idempotência, bloqueio em resultado desconhecido, fakes sem fundos e logs sanitizados.
+- **Plano obrigatório:** separar cliente, validador, contraparte, executor, carteira, oráculo e árbitro; permitir escolha de executor e agentes do pagador; usar oráculos 2 de 3; remover contraparte única; garantir continuidade sem o originador; e descentralizar disputas, conforme `docs/protocol/10-decentralization-roadmap.md`.
+- **Critério de saída:** a centralização só é removida quando nenhuma entidade isolada puder validar e executar a obrigação, existir substituição de executor, a operação continuar sem o originador, fatos críticos exigirem quórum independente e disputas tiverem procedimento fora dele, todos demonstrados por testes interoperáveis.
+
+## ADR-043 — nomenclatura canônica e próximo corte do LRP
+
+- **Data:** 2026-07-21
+- **Status:** nomenclatura aprovada; migração da plataforma não iniciada
+- **Decisão:** o protocolo passa a se chamar **Lightning Receivables Protocol**, sigla **LRP**, release **LRP v0.1**, identificador técnico `lrp` e versão dos eventos `lrp/0.1.0`. Nomes temporários que o vinculavam à marca da plataforma ou apenas à tecnologia de transporte deixam de identificar o protocolo.
+- **Integração atual:** `packages/protocol` continua isolando schemas, builders, validadores, autoridades e reducers públicos; `packages/nostr` fornece signer, transporte e reconstrução. As rotas experimentais apenas demonstram essa integração e não substituem o domínio operacional atual.
+- **Duplicação:** regras públicas do LRP e regras privadas/operacionais atuais permanecem separadas enquanto seus estados e autoridades ainda não são equivalentes. Nenhuma fórmula financeira ou máquina de estados operacional foi copiada nesta etapa.
+- **Próxima etapa:** apresentar e aprovar um plano de corte para migrar gradualmente os consumidores da plataforma existente ao LRP como fonte de verdade dos estados públicos. Não remover regras antigas nem promover o LRP a fonte canônica da plataforma antes desse plano, dos testes de compatibilidade e de uma estratégia de rollback.
+- **Guardrails:** esta decisão não habilita mainnet, pagamentos, aportes, DLC, custódia, saques ou publicação de dados privados.
+
+## ADR-044 — LRP exclusivo no MVP Elas Recebem Hoje
+
+- **Data:** 2026-07-21
+- **Status:** confirmada pela fundadora
+- **Contexto:** a proposta anterior avaliava usar o Fedi como canal comunitário, de descoberta e de acesso a pools. Essa integração aumentaria o escopo sem ser necessária para validar o produto ou o protocolo.
+- **Decisão:** o Fedi não será implementado. No MVP, o Lightning Receivables Protocol será utilizado exclusivamente pelo produto Elas Recebem Hoje. Publicação, leitura, reconstrução e experiência do LRP permanecem dentro da aplicação e de seus pacotes internos, usando Nostr apenas como transporte de eventos conforme a especificação.
+- **Consequências:** não haverá comunidade Fedi, mini app, botão específico, publicação automatizada, identidade, reputação ou fluxo de pagamento dependente do Fedi. Links públicos e compartilhamento permanecem funcionalidades próprias do Elas Recebem Hoje e podem usar canais genéricos, sem integração dedicada. A compatibilidade Lightning continua definida pelo protocolo e pelas integrações aprovadas da plataforma, não por uma carteira específica.
+- **Escopo futuro:** qualquer reconsideração do Fedi exige nova decisão explícita e não faz parte da migração da plataforma para consumir o LRP.
+- **Guardrails:** esta decisão não inicia a migração para o LRP, não habilita mainnet e não altera regras financeiras.
+
+## ADR-045 — identidade Nostr única para login e autoria LRP
+
+- **Data:** 2026-07-22
+- **Status:** aprovada pela fundadora e implementada por corte incremental
+- **Decisão:** novos acessos do produto usam exclusivamente Nostr NIP-07. O servidor emite um desafio NIP-98 aleatório, expirável, de uso único e vinculado a URL, método, domínio e propósito `LOGIN`; a participante assina no próprio signer. `users.nostr_pubkey` identifica a conta e a mesma pubkey deve assinar `ReceivableCreated` e `PoolCreated`. O servidor verifica ID e assinatura, cria ou recupera a conta e emite o cookie `erh_session` já existente.
+- **Privacidade e separação de papéis:** a plataforma nunca solicita, recebe ou armazena `nsec`. NWC permanece autorização operacional de pagamento, não login. A autoridade administrativa e o cliente originador não são substituídos pela pubkey da prestadora. Pubkeys diferentes não são unidas automaticamente.
+- **Compatibilidade:** LNURL-auth deixa a interface do produto, mas rotas, tabelas, repositórios, contas e sessões antigas permanecem intactos para expiração natural e rollback. Uma sessão antiga sem pubkey pode concluir o vínculo Nostr existente; uma sessão já vinculada nunca troca silenciosamente de identidade.
+- **Consequências:** ausência do signer bloqueia apenas novas autenticações e assinaturas públicas, não apaga o acesso já emitido. Este corte não habilita NIP-46, pagamentos, aportes, DLC, mainnet ou poderes administrativos.

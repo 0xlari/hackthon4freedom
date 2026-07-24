@@ -58,21 +58,24 @@ function tokenHashOrInvalid(rawToken: string) {
   }
 }
 
-export async function submitReceivable<THKT extends PgQueryResultHKT>(
+export type ReceivableSubmissionInput = Readonly<{
+  requesterId: string;
+  clientId: string;
+  paymentDescription: string;
+  paymentPurpose: PaymentPurpose;
+  nominalUsdCents: bigint;
+  dueAt: Date;
+  evidence: EvidenceMetadata;
+  now: Date;
+  confirmationExpiresAt: Date;
+  confirmationBaseUrl: string;
+  tokenFactory?: () => string;
+  receivableIdFactory?: () => string;
+}>;
+
+export async function submitReceivableWithinTransaction<THKT extends PgQueryResultHKT>(
   db: Database<THKT>,
-  input: {
-    requesterId: string;
-    clientId: string;
-    paymentDescription: string;
-    paymentPurpose: PaymentPurpose;
-    nominalUsdCents: bigint;
-    dueAt: Date;
-    evidence: EvidenceMetadata;
-    now: Date;
-    confirmationExpiresAt: Date;
-    confirmationBaseUrl: string;
-    tokenFactory?: () => string;
-  },
+  input: ReceivableSubmissionInput,
 ) {
   validateEvidenceMetadata(input.evidence);
   const description = input.paymentDescription.trim();
@@ -85,17 +88,16 @@ export async function submitReceivable<THKT extends PgQueryResultHKT>(
 
   const rawToken = (input.tokenFactory ?? generateConfirmationToken)();
   const tokenHash = tokenHashOrInvalid(rawToken);
-  const receivableId = randomUUID();
+  const receivableId = (input.receivableIdFactory ?? randomUUID)();
 
-  await db.transaction(async (tx) => {
-    const [requester] = await tx.select().from(users).where(eq(users.id, input.requesterId)).limit(1);
-    const [client] = await tx.select().from(clients).where(eq(clients.id, input.clientId)).limit(1);
+  const [requester] = await db.select().from(users).where(eq(users.id, input.requesterId)).limit(1);
+  const [client] = await db.select().from(clients).where(eq(clients.id, input.clientId)).limit(1);
     if (!requester || !client) {
       throw new DomainError("Participantes não encontrados.", "PARTICIPANT_NOT_FOUND");
     }
     validateReceivableTerms({ requesterCountryCode: requester.countryCode, clientCountryCode: client.countryCode, nominalUsdCents: input.nominalUsdCents, dueAt: input.dueAt, now: input.now, paymentPurpose: input.paymentPurpose });
 
-    await tx.insert(receivables).values({
+    await db.insert(receivables).values({
       id: receivableId,
       requesterId: input.requesterId,
       clientId: input.clientId,
@@ -104,8 +106,8 @@ export async function submitReceivable<THKT extends PgQueryResultHKT>(
       evidenceHash: input.evidence.sha256,
       status: "DRAFT",
     });
-    await tx.insert(receivableVersions).values({ id: randomUUID(), receivableId, version: 1, paymentDescription: description, paymentPurpose: input.paymentPurpose, nominalAmount: input.nominalUsdCents, dueAt: input.dueAt });
-    await tx.insert(receivableEvidences).values({
+    await db.insert(receivableVersions).values({ id: randomUUID(), receivableId, version: 1, paymentDescription: description, paymentPurpose: input.paymentPurpose, nominalAmount: input.nominalUsdCents, dueAt: input.dueAt });
+    await db.insert(receivableEvidences).values({
       id: randomUUID(), receivableId, receivableVersion: 1,
       privateObjectReference: input.evidence.privateObjectReference,
       sha256: input.evidence.sha256, extension: input.evidence.extension,
@@ -114,12 +116,18 @@ export async function submitReceivable<THKT extends PgQueryResultHKT>(
       byteSize: input.evidence.byteSize, scanStatus: input.evidence.scanStatus,
       scannedAt: input.evidence.scanStatus === "CLEAN" ? input.now : null,
     });
-    await tx.insert(clientConfirmations).values({ id: randomUUID(), receivableId, receivableVersion: 1, tokenHash, expiresAt: input.confirmationExpiresAt });
-    await tx.update(receivables).set({ status: "AWAITING_CLIENT", updatedAt: input.now }).where(eq(receivables.id, receivableId));
-    await tx.insert(auditEvents).values({ id: randomUUID(), actorId: input.requesterId, action: "RECEIVABLE_SUBMITTED", targetType: "RECEIVABLE", targetId: receivableId, correlationId: randomUUID(), after: { version: 1 } });
-  });
+    await db.insert(clientConfirmations).values({ id: randomUUID(), receivableId, receivableVersion: 1, tokenHash, expiresAt: input.confirmationExpiresAt });
+    await db.update(receivables).set({ status: "AWAITING_CLIENT", updatedAt: input.now }).where(eq(receivables.id, receivableId));
+    await db.insert(auditEvents).values({ id: randomUUID(), actorId: input.requesterId, action: "RECEIVABLE_SUBMITTED", targetType: "RECEIVABLE", targetId: receivableId, correlationId: randomUUID(), after: { version: 1 } });
 
   return { receivableId, confirmationUrl: buildConfirmationUrl(input.confirmationBaseUrl, rawToken), rawToken };
+}
+
+export async function submitReceivable<THKT extends PgQueryResultHKT>(
+  db: Database<THKT>,
+  input: ReceivableSubmissionInput,
+) {
+  return db.transaction((tx) => submitReceivableWithinTransaction(tx, input));
 }
 
 async function findConfirmation<THKT extends PgQueryResultHKT>(db: Database<THKT>, rawToken: string) {

@@ -55,7 +55,56 @@ describe("PostgreSQL financial constraints", () => {
       "select count(*)::int as count from drizzle.__drizzle_migrations",
     );
 
-    expect(result.rows[0]?.count).toBe(19);
+    expect(result.rows[0]?.count).toBe(26);
+  });
+
+  it("protects every LRP private, operational, and API-only projection table", async () => {
+    const protectedTables = [
+      "payer_payment_authorizations",
+      "nwc_connections",
+      "scheduled_payment_attempts",
+      "protocol_nwc_authorizations",
+      "lrp_public_events",
+      "lrp_publication_attempts",
+      "lrp_entity_links",
+      "lrp_receivable_projections",
+      "lrp_pool_projections",
+      "lrp_projection_runs",
+      "lrp_receivable_originations",
+      "lrp_originator_events",
+      "lrp_pool_originations",
+    ];
+    const placeholders = protectedTables.map((_, index) => `$${index + 1}`).join(", ");
+    const rls = await postgres.query<{ table_name: string; rls_enabled: boolean }>(
+      `select c.relname as table_name, c.relrowsecurity as rls_enabled
+       from pg_class c
+       join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public' and c.relname in (${placeholders})`,
+      protectedTables,
+    );
+    const policies = await postgres.query<{ count: number }>(
+      `select count(*)::int as count
+       from pg_policies
+       where schemaname = 'public' and tablename in (${placeholders})`,
+      protectedTables,
+    );
+
+    expect(rls.rows).toHaveLength(protectedTables.length);
+    expect(rls.rows.every(({ rls_enabled: enabled }) => enabled)).toBe(true);
+    expect(policies.rows[0]?.count).toBe(0);
+  });
+
+  it("does not change RLS on legacy MVP tables", async () => {
+    const result = await postgres.query<{ table_name: string; rls_enabled: boolean }>(
+      `select c.relname as table_name, c.relrowsecurity as rls_enabled
+       from pg_class c
+       join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public' and c.relname in ('users', 'receivables', 'pools')
+       order by c.relname`,
+    );
+
+    expect(result.rows).toHaveLength(3);
+    expect(result.rows.every(({ rls_enabled: enabled }) => !enabled)).toBe(true);
   });
 
   it("enforces one single-use payer authorization per receivable", async () => {

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   allocateToPool,
   calculateDiscountBps,
+  calculateExpectedContributorReturnBps,
   distributeContributorResult,
   simulatePool,
 } from "./pool";
@@ -40,6 +41,12 @@ describe("pool funding", () => {
     expect(calculateDiscountBps(15, "LOW")).toBe(200);
     expect(calculateDiscountBps(30, "MEDIUM")).toBe(400);
     expect(calculateDiscountBps(90, "HIGH")).toBe(500);
+  });
+
+  it("deriva o retorno público da regra central 70/30 sem entrada manual", () => {
+    expect(calculateExpectedContributorReturnBps(500)).toBe(368);
+    expect(calculateExpectedContributorReturnBps(0)).toBe(0);
+    expect(() => calculateExpectedContributorReturnBps(501)).toThrowError(expect.objectContaining({ code: "INVALID_DISCOUNT" }));
   });
 
   it("cobra taxas da solicitante sem reduzir a pool e preserva o split 30/70", () => {

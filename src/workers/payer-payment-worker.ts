@@ -16,6 +16,7 @@ import {
 import { recordLedgerTransaction } from "@/db/repositories/ledger-repository";
 import { assertPaymentAttemptAllowed, safeNwcFailureReason } from "@/domain/payer-payment";
 import { decryptNwcSecret } from "@/integrations/nwc/secret-crypto";
+import { readNwcPrivateRelayUrls } from "@/integrations/nwc/private-metadata";
 import type { NwcGateway } from "@/integrations/nwc/types";
 import type { SettlementInvoiceGateway } from "@/integrations/lightning/settlement-invoice-gateway";
 
@@ -104,7 +105,7 @@ export async function runDuePayerPayment<THKT extends PgQueryResultHKT>(
   const payment = await dependencies.nwc.payInvoice({
     connection: {
       walletServicePubkey: connection.walletServicePubkey,
-      relayUrls: connection.relayUrls as string[],
+      relayUrls: readNwcPrivateRelayUrls(connection),
       secret: decryptNwcSecret(connection.encryptedConnectionSecret),
     },
     invoice: invoice.bolt11,

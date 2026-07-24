@@ -40,7 +40,7 @@ export function SessionAwareNavigation({ mobile = false }: { mobile?: boolean })
       {session.status === "authenticated" ? (
         <>
           <Link href="/painel">Painel</Link>
-          <Link href="/entrar?trocar=1&next=/painel" title={session.label}>Trocar carteira</Link>
+          <Link href="/entrar?trocar=1&next=/painel" title={session.label}>Trocar identidade</Link>
           <button className={mobile ? "mobile-nav__action" : "nav-action"} type="button" onClick={signOut}>Sair</button>
         </>
       ) : (

@@ -175,6 +175,18 @@ export const scheduledPaymentAttemptStatus = pgEnum(
   "scheduled_payment_attempt_status",
   scheduledPaymentAttemptStatuses,
 );
+export const lrpCanonicalSource = pgEnum("lrp_canonical_source", ["LEGACY", "LRP"]);
+export const lrpPublicationStatus = pgEnum("lrp_publication_status", [
+  "PENDING",
+  "CONFIRMED",
+  "INSUFFICIENT_ACKS",
+  "REJECTED",
+]);
+export const lrpProjectionRunStatus = pgEnum("lrp_projection_run_status", [
+  "RUNNING",
+  "COMPLETED",
+  "FAILED",
+]);
 
 const createdAt = timestamp("created_at", {
   mode: "date",
@@ -750,6 +762,7 @@ export const nwcConnections = pgTable(
     walletServicePubkey: text("wallet_service_pubkey").notNull(),
     relayUrls: jsonb("relay_urls").notNull(),
     encryptedConnectionSecret: text("encrypted_connection_secret").notNull(),
+    encryptedConnectionMetadata: text("encrypted_connection_metadata"),
     connectionFingerprint: text("connection_fingerprint").notNull().unique(),
     supportedMethods: jsonb("supported_methods").notNull(),
     lastCheckedAt: timestamp("last_checked_at", { mode: "date", withTimezone: true }).notNull(),
@@ -761,6 +774,262 @@ export const nwcConnections = pgTable(
   (table) => [
     check("nwc_connections_pubkey_shape", sql`${table.walletServicePubkey} ~ '^[a-f0-9]{64}$'`),
     check("nwc_connections_fingerprint_shape", sql`${table.connectionFingerprint} ~ '^[a-f0-9]{64}$'`),
+  ],
+);
+
+// Private operational storage for the LRP v0.1 originator. Public LRP state is
+// reconstructed from relays and never from this table.
+export const protocolNwcAuthorizations = pgTable(
+  "protocol_nwc_authorizations",
+  {
+    id: text("id").primaryKey(),
+    receivableEventId: text("receivable_event_id").notNull(),
+    clientPubkey: text("client_pubkey").notNull(),
+    walletServicePubkey: text("wallet_service_pubkey").notNull(),
+    encryptedConnectionUri: text("encrypted_connection_uri").notNull(),
+    safeFingerprint: text("safe_fingerprint").notNull(),
+    maxAmountMsat: bigint("max_amount_msat", { mode: "bigint" }).notNull(),
+    dueAt: timestamp("due_at", { mode: "date", withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { mode: "date", withTimezone: true }).notNull(),
+    lastValidatedAt: timestamp("last_validated_at", { mode: "date", withTimezone: true }).notNull(),
+    attestationEventId: text("attestation_event_id"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("protocol_nwc_authorizations_receivable_client_unique").on(table.receivableEventId, table.clientPubkey),
+    uniqueIndex("protocol_nwc_authorizations_attestation_unique").on(table.attestationEventId),
+    check("protocol_nwc_authorizations_receivable_shape", sql`${table.receivableEventId} ~ '^[a-f0-9]{64}$'`),
+    check("protocol_nwc_authorizations_client_shape", sql`${table.clientPubkey} ~ '^[a-f0-9]{64}$'`),
+    check("protocol_nwc_authorizations_wallet_shape", sql`${table.walletServicePubkey} ~ '^[a-f0-9]{64}$'`),
+    check("protocol_nwc_authorizations_fingerprint_shape", sql`${table.safeFingerprint} ~ '^[a-f0-9]{64}$'`),
+    check("protocol_nwc_authorizations_amount_positive", sql`${table.maxAmountMsat} > 0`),
+    check("protocol_nwc_authorizations_expiry", sql`${table.expiresAt} > ${table.dueAt}`),
+  ],
+);
+
+export const lrpPublicEvents = pgTable(
+  "lrp_public_events",
+  {
+    eventId: text("event_id").primaryKey(),
+    kind: integer("kind").notNull(),
+    pubkey: text("pubkey").notNull(),
+    eventCreatedAt: integer("event_created_at").notNull(),
+    tags: jsonb("tags").notNull(),
+    content: text("content").notNull(),
+    signature: text("signature").notNull(),
+    observedRelays: jsonb("observed_relays").notNull().default([]),
+    firstSeenAt: timestamp("first_seen_at", { mode: "date", withTimezone: true }).notNull(),
+    lastSyncedAt: timestamp("last_synced_at", { mode: "date", withTimezone: true }).notNull(),
+  },
+  (table) => [
+    check("lrp_public_events_id_shape", sql`${table.eventId} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_public_events_pubkey_shape", sql`${table.pubkey} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_public_events_signature_shape", sql`${table.signature} ~ '^[a-f0-9]{128}$'`),
+    check("lrp_public_events_kind_range", sql`${table.kind} between 8100 and 8114`),
+    index("lrp_public_events_kind_created_idx").on(table.kind, table.eventCreatedAt),
+  ],
+);
+
+export const lrpPublicationAttempts = pgTable(
+  "lrp_publication_attempts",
+  {
+    id: text("id").primaryKey(),
+    idempotencyKey: text("idempotency_key").notNull().unique(),
+    entityType: text("entity_type").notNull(),
+    privateEntityId: text("private_entity_id").notNull(),
+    eventId: text("event_id").notNull().references(() => lrpPublicEvents.eventId, { onDelete: "restrict" }),
+    status: lrpPublicationStatus("status").notNull().default("PENDING"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    acknowledgedRelays: jsonb("acknowledged_relays").notNull().default([]),
+    rejectedRelays: jsonb("rejected_relays").notNull().default([]),
+    timedOutRelays: jsonb("timed_out_relays").notNull().default([]),
+    lastErrorCode: text("last_error_code"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    check("lrp_publication_attempts_entity_type", sql`${table.entityType} in ('RECEIVABLE', 'POOL', 'ORIGINATOR_FACT')`),
+    check("lrp_publication_attempts_count_non_negative", sql`${table.attemptCount} >= 0`),
+    index("lrp_publication_attempts_entity_idx").on(table.entityType, table.privateEntityId),
+  ],
+);
+
+// Private preparation state for the real receivable creation flow. Only the
+// signed event and its derived projection become public LRP state.
+export const lrpReceivableOriginations = pgTable(
+  "lrp_receivable_originations",
+  {
+    id: text("id").primaryKey(),
+    requestKey: text("request_key").notNull().unique(),
+    receivableId: text("receivable_id").notNull().unique()
+      .references(() => receivables.id, { onDelete: "restrict" }),
+    requesterId: text("requester_id").notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    mode: text("mode").notNull(),
+    status: text("status").notNull().default("PRIVATE_DRAFT"),
+    providerPubkey: text("provider_pubkey"),
+    publicPseudonym: text("public_pseudonym").notNull(),
+    privatePayload: jsonb("private_payload").notNull(),
+    candidateEvent: jsonb("candidate_event"),
+    signedEvent: jsonb("signed_event"),
+    publicEventId: text("public_event_id").unique()
+      .references(() => lrpPublicEvents.eventId, { onDelete: "restrict" }),
+    divergences: jsonb("divergences").notNull().default([]),
+    canonicalSource: lrpCanonicalSource("canonical_source").notNull().default("LEGACY"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    index("lrp_receivable_originations_requester_idx").on(table.requesterId, table.status),
+    check("lrp_receivable_originations_mode", sql`${table.mode} in ('SHADOW', 'LRP')`),
+    check("lrp_receivable_originations_status", sql`${table.status} in ('PRIVATE_DRAFT', 'CANDIDATE_READY', 'SHADOW_VALIDATED', 'PUBLICATION_PENDING', 'PUBLISHED', 'PROJECTION_PENDING')`),
+    check("lrp_receivable_originations_pubkey_shape", sql`${table.providerPubkey} is null or ${table.providerPubkey} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_receivable_originations_event_shape", sql`${table.publicEventId} is null or ${table.publicEventId} ~ '^[a-f0-9]{64}$'`),
+  ],
+);
+
+// Private preparation and publication state for originator-signed facts. The
+// private hash commits to PostgreSQL data; only the signed LRP event is public.
+export const lrpOriginatorEvents = pgTable(
+  "lrp_originator_events",
+  {
+    id: text("id").primaryKey(),
+    receivableId: text("receivable_id").notNull()
+      .references(() => receivables.id, { onDelete: "restrict" }),
+    eventType: text("event_type").notNull(),
+    mode: text("mode").notNull(),
+    status: text("status").notNull().default("PRIVATE_RECORDED"),
+    originatorPubkey: text("originator_pubkey"),
+    privateRecordId: text("private_record_id").notNull(),
+    privatePayloadHash: text("private_payload_hash").notNull(),
+    candidateEvent: jsonb("candidate_event"),
+    signedEvent: jsonb("signed_event"),
+    publicEventId: text("public_event_id").unique()
+      .references(() => lrpPublicEvents.eventId, { onDelete: "restrict" }),
+    divergences: jsonb("divergences").notNull().default([]),
+    canonicalSource: lrpCanonicalSource("canonical_source").notNull().default("LEGACY"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("lrp_originator_events_receivable_type_unique").on(table.receivableId, table.eventType),
+    index("lrp_originator_events_status_idx").on(table.eventType, table.status),
+    check("lrp_originator_events_type", sql`${table.eventType} in ('PayerCommitmentProof', 'ClientValidationDecision', 'NwcAuthorizationAttestation')`),
+    check("lrp_originator_events_mode", sql`${table.mode} in ('SHADOW', 'LRP')`),
+    check("lrp_originator_events_status", sql`${table.status} in ('PRIVATE_RECORDED', 'CANDIDATE_READY', 'SHADOW_VALIDATED', 'PUBLICATION_PENDING', 'PUBLISHED', 'PROJECTION_PENDING')`),
+    check("lrp_originator_events_pubkey_shape", sql`${table.originatorPubkey} is null or ${table.originatorPubkey} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_originator_events_private_hash_shape", sql`${table.privatePayloadHash} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_originator_events_public_event_shape", sql`${table.publicEventId} is null or ${table.publicEventId} ~ '^[a-f0-9]{64}$'`),
+  ],
+);
+
+// Private preparation state for a provider-approved PoolCreated event. Financial
+// terms remain private until the provider explicitly accepts the public payload.
+export const lrpPoolOriginations = pgTable(
+  "lrp_pool_originations",
+  {
+    id: text("id").primaryKey(),
+    receivableId: text("receivable_id").notNull().unique()
+      .references(() => receivables.id, { onDelete: "restrict" }),
+    poolId: text("pool_id").notNull().unique(),
+    requesterId: text("requester_id").notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    mode: text("mode").notNull(),
+    status: text("status").notNull().default("TERMS_READY"),
+    providerPubkey: text("provider_pubkey"),
+    termsPayload: jsonb("terms_payload").notNull(),
+    termsHash: text("terms_hash").notNull(),
+    consentedAt: timestamp("consented_at", { mode: "date", withTimezone: true }),
+    candidateEvent: jsonb("candidate_event"),
+    signedEvent: jsonb("signed_event"),
+    publicEventId: text("public_event_id").unique()
+      .references(() => lrpPublicEvents.eventId, { onDelete: "restrict" }),
+    divergences: jsonb("divergences").notNull().default([]),
+    canonicalSource: lrpCanonicalSource("canonical_source").notNull().default("LEGACY"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    index("lrp_pool_originations_requester_idx").on(table.requesterId, table.status),
+    check("lrp_pool_originations_mode", sql`${table.mode} in ('SHADOW', 'LRP')`),
+    check("lrp_pool_originations_status", sql`${table.status} in ('TERMS_READY', 'CANDIDATE_READY', 'SHADOW_VALIDATED', 'PUBLICATION_PENDING', 'PUBLISHED', 'PROJECTION_PENDING')`),
+    check("lrp_pool_originations_pubkey_shape", sql`${table.providerPubkey} is null or ${table.providerPubkey} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_pool_originations_terms_hash_shape", sql`${table.termsHash} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_pool_originations_event_shape", sql`${table.publicEventId} is null or ${table.publicEventId} ~ '^[a-f0-9]{64}$'`),
+  ],
+);
+
+export const lrpEntityLinks = pgTable(
+  "lrp_entity_links",
+  {
+    id: text("id").primaryKey(),
+    entityType: text("entity_type").notNull(),
+    privateEntityId: text("private_entity_id").notNull(),
+    eventType: text("event_type").notNull(),
+    eventId: text("event_id").notNull().references(() => lrpPublicEvents.eventId, { onDelete: "restrict" }),
+    canonicalSource: lrpCanonicalSource("canonical_source").notNull(),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex("lrp_entity_links_private_event_type_unique").on(table.entityType, table.privateEntityId, table.eventType),
+    uniqueIndex("lrp_entity_links_event_unique").on(table.eventId),
+    check("lrp_entity_links_entity_type", sql`${table.entityType} in ('RECEIVABLE', 'POOL')`),
+  ],
+);
+
+export const lrpReceivableProjections = pgTable(
+  "lrp_receivable_projections",
+  {
+    receivableEventId: text("receivable_event_id").primaryKey().references(() => lrpPublicEvents.eventId, { onDelete: "restrict" }),
+    receivableId: text("receivable_id").notNull(),
+    providerPubkey: text("provider_pubkey").notNull(),
+    projection: jsonb("projection").notNull(),
+    projectedAt: timestamp("projected_at", { mode: "date", withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("lrp_receivable_projections_public_id_unique").on(table.receivableId),
+    check("lrp_receivable_projections_provider_shape", sql`${table.providerPubkey} ~ '^[a-f0-9]{64}$'`),
+  ],
+);
+
+export const lrpPoolProjections = pgTable(
+  "lrp_pool_projections",
+  {
+    poolEventId: text("pool_event_id").primaryKey().references(() => lrpPublicEvents.eventId, { onDelete: "restrict" }),
+    poolId: text("pool_id").notNull(),
+    providerPubkey: text("provider_pubkey").notNull(),
+    originatorPubkey: text("originator_pubkey").notNull(),
+    state: text("state").notNull(),
+    latestEventId: text("latest_event_id").notNull(),
+    progressBps: integer("progress_bps").notNull().default(0),
+    projection: jsonb("projection").notNull(),
+    projectedAt: timestamp("projected_at", { mode: "date", withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("lrp_pool_projections_public_id_unique").on(table.poolId),
+    check("lrp_pool_projections_provider_shape", sql`${table.providerPubkey} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_pool_projections_originator_shape", sql`${table.originatorPubkey} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_pool_projections_latest_event_shape", sql`${table.latestEventId} ~ '^[a-f0-9]{64}$'`),
+    check("lrp_pool_projections_progress_range", sql`${table.progressBps} between 0 and 10000`),
+    index("lrp_pool_projections_state_idx").on(table.state),
+  ],
+);
+
+export const lrpProjectionRuns = pgTable(
+  "lrp_projection_runs",
+  {
+    id: text("id").primaryKey(),
+    status: lrpProjectionRunStatus("status").notNull().default("RUNNING"),
+    eventCount: integer("event_count").notNull().default(0),
+    receivableCount: integer("receivable_count").notNull().default(0),
+    poolCount: integer("pool_count").notNull().default(0),
+    inconsistencies: jsonb("inconsistencies").notNull().default([]),
+    startedAt: timestamp("started_at", { mode: "date", withTimezone: true }).notNull(),
+    finishedAt: timestamp("finished_at", { mode: "date", withTimezone: true }),
+  },
+  (table) => [
+    check("lrp_projection_runs_counts_non_negative", sql`${table.eventCount} >= 0 and ${table.receivableCount} >= 0 and ${table.poolCount} >= 0`),
   ],
 );
 
